@@ -1,21 +1,34 @@
-from typing import Dict, List
+from typing import Callable, Dict
+import numpy as np
 import re
 
 
 class RatesEquation:
-    def __init__(self, reactants: Dict[str, float], products: Dict[str, float]):
+    def __init__(
+        self,
+        reactants: Dict[str, float],
+        products: Dict[str, float],
+        rate_fn: Callable[[np.ndarray], float],
+    ):
         self.reactants = reactants
         self.products = products
         self.elements = set().union(*(reactants.keys(), products.keys()))
+        self.rate_fn = rate_fn
+        self.v_rate_fn = np.vectorize(rate_fn)
 
     @staticmethod
     def parse_str(
-        equation_str: str, add_delim: str = "+", react_delim: str = "->"
+        equation_str: str,
+        rate_fn: Callable[[np.ndarray], float] = lambda _: 1,
+        add_delim: str = "+",
+        react_delim: str = "->",
     ) -> "RatesEquation":
-        """Parses rate equation strings (e.g. A + 2B -> C)
+        """Parses rate equation strings (e.g. A + 2B -> C).
 
         Args:
           equation_str  : string representing the rate equation
+          rate_fn       : function that yields the rate coefficient with
+                          respect to the state of the system
           add_delim     : addition delimeter
           react_delim   : reaction delimeter
         """
@@ -36,7 +49,7 @@ class RatesEquation:
                     terms[symbol] = 0
                 terms[symbol] += count
 
-        return RatesEquation(reactants, products)
+        return RatesEquation(reactants, products, rate_fn)
 
     def __str__(self) -> str:
         return " -> ".join(
