@@ -7,10 +7,6 @@ import numpy as np
 
 
 class SimpleModel(PromoterModel):
-    _ORDERED_SUBSTANCES = {
-        sub: index for (index, sub) in enumerate(("A", "I", "M", "P"))
-    }
-
     def __init__(self, rate_fns: Tuple[Callable[[float, np.ndarray], float]] = None):
         self.rate_fns = rate_fns
         self.system = BioChemicalSystem(
@@ -35,15 +31,4 @@ class SimpleModel(PromoterModel):
         Args:
           rates: tuple of reaction rates (i.e. (k_on, k_off, k_syn, k_dec))
         """
-        return SimpleModel(
-            rate_fns=(
-                RateFunction.simple(rate, index)
-                for (rate, index) in zip(
-                    rates,
-                    (
-                        SimpleModel._ORDERED_SUBSTANCES[sub]
-                        for sub in ("I", "A", "A", "M")
-                    ),
-                )
-            )
-        )
+        return SimpleModel(rate_fns=(RateFunction.constant(rate) for rate in rates))

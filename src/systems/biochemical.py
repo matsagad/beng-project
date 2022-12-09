@@ -7,7 +7,12 @@ class BioChemicalSystem:
     def __init__(self, equations: List[RatesEquation]):
         self.equations = equations
         self.elements = sorted(set().union(*(eq.elements for eq in equations)))
+
         self.composition_matrix = self._composition_matrix()
+        # Only concerned with magnitude of negative entries (i.e. for degeneracy)
+        self.propensity_matrix = -self.composition_matrix * (
+            self.composition_matrix < 0
+        )
 
     def _composition_matrix(self) -> np.ndarray:
         """Finds the composition matrix of the system.
@@ -23,24 +28,25 @@ class BioChemicalSystem:
 
         return np.transpose(list(count_map.values()))
 
-    def propensity(self, state: np.ndarray) -> np.ndarray:
+    def propensity(self, state: np.ndarray, exogenous_state: np.ndarray) -> np.ndarray:
         """Produces the propensities of the system.
+
         Args:
-            state : a vector of the system's state, i.e. ([A], [I], [M], [P])
+            state           : a vector of the system's state, i.e. [[A], [I], [M], [P]]
+            exogenous_state : a vector of an exogenous system's state, i.e. [[TF1], [TF2] [TF3]]
 
         Returns:
             A unit vector of propensities.
         """
-        if self.composition_matrix is not None:
-            self.composition_matrix = self._composition_matrix()
-
-        # Only concerned with magnitude of negative entries (i.e. for degeneracy)
-        propensity_matrix = -self.composition_matrix * (self.composition_matrix < 0)
-
-        return np.sum(
-            propensity_matrix
-            * np.array([eq.rate_fn(state) for eq in self.equations])[:, None],
-            axis=0,
+        return np.dot(
+            np.sum(
+                self.propensity_matrix
+                * np.array([eq.rate_fn(exogenous_state) for eq in self.equations])[
+                    :, None
+                ],
+                axis=0,
+            ),
+            state,
         )
 
     def __str__(self) -> str:
