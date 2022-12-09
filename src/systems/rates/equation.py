@@ -8,7 +8,7 @@ class RatesEquation:
         self,
         reactants: Dict[str, float],
         products: Dict[str, float],
-        rate_fn: Callable[[np.ndarray], float],
+        rate_fn: Callable[[np.ndarray, np.ndarray], float],
     ):
         self.reactants = reactants
         self.products = products

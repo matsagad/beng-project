@@ -38,16 +38,7 @@ class BioChemicalSystem:
         Returns:
             A unit vector of propensities.
         """
-        return np.dot(
-            np.sum(
-                self.propensity_matrix
-                * np.array([eq.rate_fn(exogenous_state) for eq in self.equations])[
-                    :, None
-                ],
-                axis=0,
-            ),
-            state,
-        )
+        return np.array([eq.rate_fn(state, exogenous_state) for eq in self.equations])
 
     def __str__(self) -> str:
         return "\n".join(str(eq) for eq in self.equations)
