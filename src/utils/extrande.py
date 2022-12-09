@@ -33,7 +33,14 @@ class Extrande:
         num_time_stamps = len(exogenous_times)
         sim_time_factor = num_time_stamps / max_time
         reactions_per_time_stamp = 2
+
         composition_matrix = model.composition_matrix()
+        find_total_propensities_vec = np.vectorize(
+            lambda ex_index, state: sum(
+                model.propensity(state, exogenous_states[:, ex_index])
+            ),
+            excluded=["state"],
+        )
 
         while time < max_time:
             # Record data
@@ -46,11 +53,9 @@ class Extrande:
             # Find propensity bounds
             L = min(reactions_per_time_stamp / sim_time_factor, max_time - time)
             next_sim_time_stamp = int((time + L) * sim_time_factor)
-            B = max(
-                np.apply_along_axis(
-                    lambda ex_state: sum(model.propensity(state, ex_state)),
-                    0,
-                    exogenous_states[sim_time_stamp : next_sim_time_stamp + 1],
+            B = np.max(
+                find_total_propensities_vec(
+                    ex_index=np.arange(sim_time_stamp, next_sim_time_stamp), state=state
                 )
             )
 
@@ -67,8 +72,7 @@ class Extrande:
             # Generate uniformly distributed random number
             u = np.random.uniform(0, 1)
             # Find the exogenous state relative to simulation time
-            exogenous_state = exogenous_states[sim_time_stamp]
-
+            exogenous_state = exogenous_states[:, sim_time_stamp]
             propensity = model.propensity(state, exogenous_state)
             total_propensity = sum(propensity)
 
@@ -78,8 +82,11 @@ class Extrande:
 
             # Smallest index for which sum is >= B * u.
             j = min(np.cumsum(propensity).searchsorted(B * u), len(propensity))
-            # Update the state assuming reactions occur
             state += composition_matrix[j, :]
+
+        # Record last time and state right after the simulation ends
+        times.append(time)
+        states.append(list(state))
 
         # Scale time series data to match time stamps of realised experiment
         time_arr, state_arr = np.array(times), np.array(states)
