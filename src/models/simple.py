@@ -8,7 +8,14 @@ import numpy as np
 
 class SimpleModel(PromoterModel):
     _SUBSTANCE_MAP = {sub: index for (index, sub) in enumerate("AIMP")}
-    _RATE_DEPENDENCE = (SimpleModel._SUBSTANCE_MAP[sub] for sub in "AIAM")
+    _RATE_EQUATIONS = (
+        "A -> I",
+        "I -> A",
+        "A -> A + M",
+        "M -> P",
+    )
+    # Reactants from the rate equations
+    _RATE_DEPENDENTS = list(map(_SUBSTANCE_MAP.get, "AIAM"))
 
     def __init__(self, rate_fns: Tuple[Callable[[float, np.ndarray], float]] = None):
         self.rate_fns = rate_fns
@@ -16,12 +23,7 @@ class SimpleModel(PromoterModel):
             [
                 RatesEquation.parse_str(eq, rate_fn)
                 for (eq, rate_fn) in zip(
-                    (
-                        "A -> I",
-                        "I -> A",
-                        "A -> A + M",
-                        "M -> P",
-                    ),
+                    self._RATE_EQUATIONS,
                     self.rate_fns,
                 )
             ]
@@ -37,7 +39,7 @@ class SimpleModel(PromoterModel):
         return SimpleModel(
             rate_fns=(
                 RateFunction.constant(rate, index)
-                for rate, index in zip(rates, SimpleModel._RATE_DEPENDENCE)
+                for rate, index in zip(rates, SimpleModel._RATE_DEPENDENTS)
             )
         )
 
@@ -49,12 +51,12 @@ class SimpleModel(PromoterModel):
           rates: tuple of reaction rates (i.e. (k_off, k_on, k_syn, k_dec))
         """
         # TODO: make builder patterns DRY
-        rate_dependence = SimpleModel._RATE_DEPENDENCE
+        rate_dependents = SimpleModel._RATE_DEPENDENTS
         return SimpleModel(
             rate_fns=(
-                RateFunction.constant(rates[0], index=rate_dependence[0]),
-                RateFunction.simple(rates[1], index=rate_dependence[1], exo_index=0),
-                RateFunction.constant(rates[2], index=rate_dependence[2]),
-                RateFunction.constant(rates[3], index=rate_dependence[3]),
+                RateFunction.constant(rates[0], index=rate_dependents[0]),
+                RateFunction.simple(rates[1], index=rate_dependents[1], exo_index=0),
+                RateFunction.constant(rates[2], index=rate_dependents[2]),
+                RateFunction.constant(rates[3], index=rate_dependents[3]),
             )
         )
