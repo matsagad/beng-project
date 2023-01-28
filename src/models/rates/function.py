@@ -5,7 +5,7 @@ import numpy as np
 class RateFunction:
     @staticmethod
     def constant(a: float) -> Callable[[np.ndarray, np.ndarray], float]:
-        return lambda exo_states: np.repeat(a, exo_states.shape[1])
+        return lambda exo_states: a + np.zeros(exo_states.shape[1:])
 
     @staticmethod
     def linear(a: float, exo_index: int) -> Callable[[np.ndarray, np.ndarray], float]:
