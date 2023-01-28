@@ -11,6 +11,7 @@ class Extrande:
         initial_state: np.ndarray,
         exogenous_times: np.ndarray,
         exogenous_states: np.ndarray,
+        scaled: bool = True,
     ) -> np.ndarray:
         """Simulates the biochemical system involved in the given model
         whilst taking into account exogenous states and their time of observation.
@@ -51,7 +52,7 @@ class Extrande:
             sim_time_stamp = int(time * sim_time_factor)
 
             # Find propensity bounds
-            L = min(reactions_per_time_stamp / sim_time_factor, max_time - time)
+            L = min(3 * reactions_per_time_stamp / sim_time_factor, max_time - time)
             next_sim_time_stamp = int((time + L) * sim_time_factor)
             B = np.max(
                 find_total_propensities_vec(
@@ -88,8 +89,10 @@ class Extrande:
         times.append(time)
         states.append(list(state))
 
-        # Scale time series data to match time stamps of realised experiment
         time_arr, state_arr = np.array(times), np.array(states)
-        scaled_states = state_arr[time_arr.searchsorted(exogenous_times)]
+        if not scaled:
+            return time_arr, state_arr
 
-        return scaled_states
+        # Scale time series data to match time stamps of realised experiment
+        scaled_states = state_arr[time_arr.searchsorted(exogenous_times)]
+        return exogenous_times, scaled_states
