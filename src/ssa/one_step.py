@@ -37,7 +37,9 @@ class OneStepSimulator(StochasticSimulator):
             # (einsum used to multiply tensors and allow batching)
             prob_dist = np.einsum("ij,jki->ik", state, matrix_exp)
 
-            if self.deterministic:
+            if not self.deterministic:
+                state = prob_dist
+            else:
                 # Choose state based on random number and probability distribution
                 chosen = list(
                     arr.searchsorted(num)
@@ -47,9 +49,7 @@ class OneStepSimulator(StochasticSimulator):
                 # Update the state
                 state = np.zeros((self.batch_size, num_states))
                 state[np.arange(self.batch_size), chosen] = 1
-            else:
-                state = prob_dist
-                
+
             states.append(state)
 
         return np.array(states)
