@@ -1,5 +1,5 @@
 from models.model import PromoterModel
-from models.rates.function import RateFunction
+from models.rates.function import RateFunction as RF
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from utils.data_processing import scaleTSall
 from utils.data_processing import scaleTS
@@ -69,12 +69,14 @@ def main():
 
     model = PromoterModel(
         rate_fn_matrix=[
-            [None, None, RateFunction.linear(a, tf_index)],
-            [RateFunction.constant(b), None, None],
-            [None, RateFunction.constant(c), None],
+            [None, None, RF.Linear(a, tf_index)],
+            [RF.Constant(b), None, None],
+            [None, RF.Constant(c), None],
         ]
     )
 
+    model.visualise()
+    
     pipeline = OneStepDecodingPipeline(data)
     pipeline.evaluate(model, verbose=True)
 

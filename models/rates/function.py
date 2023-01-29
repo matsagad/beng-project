@@ -38,6 +38,7 @@ class RateFunction:
     class Hill(Function):
         def __init__(self, a: float, b: float, exo_index: int):
             self.a = a
+            self.b = b
             self.exo_index = exo_index
 
         def evaluate(self, exo_states: NDArray) -> float:
@@ -46,4 +47,4 @@ class RateFunction:
             )
 
         def str(self) -> str:
-            return f"({self.a} * TF[{self.exo_index}]) / (b + TF[{self.exo_index}])"
+            return f"({self.a} * TF[{self.exo_index}]) / ({self.b} + TF[{self.exo_index}])"
