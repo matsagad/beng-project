@@ -1,10 +1,8 @@
 from models.model import PromoterModel
 from models.rates.function import RateFunction
-from mi_estimation.decoding import DecodingEstimator
+from pipeline.one_step_decoding import OneStepDecodingPipeline
 from utils.data_processing import scaleTSall
-from ssa.one_step import OneStepSimulator
 from utils.data_processing import scaleTS
-import time
 import numpy as np
 
 
@@ -77,17 +75,8 @@ def main():
         ]
     )
 
-    # Simulate
-    start = time.time()
-    sim = OneStepSimulator(data, 2.5, deterministic=False)
-    ts = sim.simulate(model)
-    print(ts.shape)
-    print(f"Simulation done! ({'%.3f' % (time.time() - start)}s)")
-
-    # Evaluate
-    est = DecodingEstimator(origin, 20)
-    miscore = est.estimate(model, ts)
-    print(f"MI found: {miscore}")
+    pipeline = OneStepDecodingPipeline(data)
+    pipeline.evaluate(model, verbose=True)
 
 
 if __name__ == "__main__":
