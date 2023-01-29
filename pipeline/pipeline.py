@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from mi_estimation.estimator import MIEstimator
 from models.model import PromoterModel
 from ssa.simulator import StochasticSimulator
-from numpy import ndarray
 import time
 
 
@@ -29,15 +28,14 @@ class Pipeline(ABC):
         """
         pass
 
-    def estimateMI(self, model: PromoterModel) -> ndarray:
+    def estimateMI(self, model: PromoterModel) -> float:
         """Estimates the MI supplied by the model.
 
         Args:
             model : a promoter model
 
         Returns:
-            A unit vector of MI values. Its dimension is equal to the number
-            of samples from the exogenous input used by the estimator.
+            A float value corresponding to the MI.
         """
         if self.verbose:
             print("Simulating model...")

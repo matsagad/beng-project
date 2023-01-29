@@ -1,0 +1,5 @@
+matplotlib==3.3.3
+numpy==1.24.1
+nptyping==2.4.1
+scipy==1.10.0
+scikit-learn==1.1.1
