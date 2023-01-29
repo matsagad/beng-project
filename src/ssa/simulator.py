@@ -8,7 +8,7 @@ class StochasticSimulator(ABC):
         pass
 
     @abstractmethod
-    def simulate(self, model: PromoterModel) -> NDArray[Shape["Any, Any, Any"], Float]:
+    def simulate(self, model: PromoterModel) -> NDArray[Shape["Any, Any, Any, Any"], Float]:
         """Simulates the trajectory of the model.
 
         Args:
@@ -16,6 +16,6 @@ class StochasticSimulator(ABC):
 
         Returns:
             A time series of the model's state. Its dimensions are given
-            by: # of time stamps, batch size, # of model states.
+            by: # of classes, # of time stamps, batch size, # of model states.
         """
         pass
