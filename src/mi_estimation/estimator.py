@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from numpy import ndarray
+from nptyping import NDArray, Shape, Float
+
 
 class MIEstimator(ABC):
     def __init__(self):
         pass
     
     @abstractmethod
-    def estimate(self, trajectory: ndarray) -> ndarray:
+    def estimate(self, trajectory: NDArray[Shape["Any, Any, Any"], Float]) -> float:
       """Estimates the MI of the trajectory with respect to the
          exogenous input data.
 
