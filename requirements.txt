@@ -1,3 +1,4 @@
+igraph==0.10.4
 matplotlib==3.3.3
 numpy==1.24.1
 nptyping==2.4.1
