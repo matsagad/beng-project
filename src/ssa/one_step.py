@@ -10,12 +10,13 @@ class OneStepSimulator(StochasticSimulator):
     after reducing the case to a continuous-time Markov chain.
     """
 
-    def __init__(self, exogenous_data: NDArray[Shape["Any, Any"], Float], tau: float):
+    def __init__(self, exogenous_data: NDArray[Shape["Any, Any"], Float], tau: float, deterministic: bool=False):
         self.exogenous_data = exogenous_data
         self.batch_size = self.exogenous_data.shape[1]
         self.tau = tau
+        self.deterministic = deterministic
 
-    def simulate(self, model: PromoterModel) -> NDArray[Shape["Any"], Float]:
+    def simulate(self, model: PromoterModel) -> NDArray[Shape["Any, Any, Any"], Float]:
         # Initialise state
         state = np.tile(model.init_state, (self.batch_size, 1))
 
@@ -36,15 +37,19 @@ class OneStepSimulator(StochasticSimulator):
             # (einsum used to multiply tensors and allow batching)
             prob_dist = np.einsum("ij,jki->ik", state, matrix_exp)
 
-            # Choose state based on random number and probability distribution
-            chosen = list(
-                arr.searchsorted(num)
-                for arr, num in zip(np.cumsum(prob_dist, axis=1), rand_num)
-            )
+            if self.deterministic:
+                # Choose state based on random number and probability distribution
+                chosen = list(
+                    arr.searchsorted(num)
+                    for arr, num in zip(np.cumsum(prob_dist, axis=1), rand_num)
+                )
 
-            # Update the state
-            state = np.zeros((self.batch_size, num_states))
-            state[np.arange(self.batch_size), chosen] = 1
+                # Update the state
+                state = np.zeros((self.batch_size, num_states))
+                state[np.arange(self.batch_size), chosen] = 1
+            else:
+                state = prob_dist
+                
             states.append(state)
 
         return np.array(states)
