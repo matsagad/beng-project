@@ -10,7 +10,12 @@ class OneStepSimulator(StochasticSimulator):
     after reducing the case to a continuous-time Markov chain.
     """
 
-    def __init__(self, exogenous_data: NDArray[Shape["Any, Any"], Float], tau: float, deterministic: bool=False):
+    def __init__(
+        self,
+        exogenous_data: NDArray[Shape["Any, Any, Any"], Float],
+        tau: float,
+        deterministic: bool = False,
+    ):
         self.exogenous_data = exogenous_data
         self.batch_size = self.exogenous_data.shape[1]
         self.tau = tau
