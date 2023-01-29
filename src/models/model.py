@@ -15,6 +15,7 @@ class PromoterModel:
         """
         self.rate_fn_matrix = rate_fn_matrix
         self.init_state = [1] + [0] * (len(rate_fn_matrix) - 1)
+        self.active_state = -1
 
     def get_generator(
         self, exogenous_data: NDArray[Shape["Any, Any, Any"], Float]
