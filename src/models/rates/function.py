@@ -12,9 +12,13 @@ class RateFunction:
         return lambda exo_state: a * exo_state[exo_index]
 
     @staticmethod
+    def inverse(a: float, exo_index: int) -> Callable[[np.ndarray, np.ndarray], float]:
+        return lambda exo_state: a / (1 + exo_state[exo_index])
+
+    @staticmethod
     def hill(
         a: float, b: float, exo_index: int
     ) -> Callable[[np.ndarray, np.ndarray], float]:
         return lambda exo_state: (
-            (a * exo_state[exo_index] / b) / (1 + exo_state[exo_index] / b)
+            (a * exo_state[exo_index]) / (b + exo_state[exo_index])
         )
