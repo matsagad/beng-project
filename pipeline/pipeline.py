@@ -10,47 +10,47 @@ class Pipeline(ABC):
         self,
         simulator: StochasticSimulator,
         estimator: MIEstimator,
-        verbose: bool = False,
     ):
         self.simulator = simulator
         self.estimator = estimator
-        self.verbose = verbose
 
     @abstractmethod
-    def evaluate(self, model: PromoterModel) -> float:
+    def evaluate(self, model: PromoterModel, verbose: bool = False) -> float:
         """Evaluates the model by some metric.
 
         Args:
-            model : a promoter model
+            model   : a promoter model
+            verbose : flag for printing progress onto the console
 
         Returns:
             A raw fitness value for the model.
         """
         pass
 
-    def estimateMI(self, model: PromoterModel) -> float:
+    def estimateMI(self, model: PromoterModel, verbose: bool = False) -> float:
         """Estimates the MI supplied by the model.
 
         Args:
-            model : a promoter model
+            model   : a promoter model
+            verbose : flag for printing progress onto the console
 
         Returns:
             A float value corresponding to the MI.
         """
-        if self.verbose:
+        if verbose:
             print("Simulating model...")
             start = time.time()
 
         trajectory = self.simulator.simulate(model)
 
-        if self.verbose:
-            print(f"Trajectory obtained! ({time.time() - start}s)")
+        if verbose:
+            print(f"({'%.3f' % (time.time() - start)}s) Trajectory obtained!")
             print("Estimating MI...")
             start = time.time()
 
-        mi = self.estimator.estimate(model, trajectory)
+        miscore = self.estimator.estimate(model, trajectory)
 
-        if self.verbose:
-            print(f"MI found: {mi}. ({time.time() - start}s)")
+        if verbose:
+            print(f"({'%.3f' % (time.time() - start)}s) MI found: {miscore}")
 
-        return mi
+        return miscore
