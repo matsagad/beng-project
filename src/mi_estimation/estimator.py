@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from models.model import PromoterModel
 from nptyping import NDArray, Shape, Float
 
 
@@ -7,15 +8,20 @@ class MIEstimator(ABC):
         pass
 
     @abstractmethod
-    def estimate(self, trajectory: NDArray[Shape["Any, Any, Any"], Float]) -> float:
+    def estimate(
+        self,
+        model: PromoterModel,
+        trajectory: NDArray[Shape["Any, Any, Any, Any"], Float],
+    ) -> float:
         """Estimates the MI of the trajectory with respect to the
            exogenous input data.
 
         Args:
-            trajectory  : a time series of the model states
+            model       : promoter model responsible for the trajectory
+            trajectory  : time series of the model states; dimensions are:
+                          # of classes, # of time stamps, batch size, # of model states
 
         Returns:
-            A unit vector of MI values. Its dimension is equal to the number
-            of samples from the exogenous input.
+            A float value corresponding to the MI.
         """
         pass
