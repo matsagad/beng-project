@@ -14,8 +14,11 @@ class PromoterModel:
                               a row sum of zero.
         """
         self.rate_fn_matrix = rate_fn_matrix
+        # Default initial and active states
+        # (should be changed for models with more than one active
+        # state, e.g. competing activator)
         self.init_state = [1] + [0] * (len(rate_fn_matrix) - 1)
-        self.active_state = -1
+        self.active_states = [False] * (len(rate_fn_matrix) - 1) + [True]
 
     def get_generator(
         self, exogenous_data: NDArray[Shape["Any, Any, Any"], Float]
