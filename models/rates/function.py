@@ -22,7 +22,7 @@ class RateFunction:
             return self.a + np.zeros(exo_states.shape[1:])
 
         def str(self) -> str:
-            return f"{self.a}"
+            return f"${self.a}$"
 
     class Linear(Function):
         def __init__(self, a: float, exo_index: int):
@@ -33,7 +33,7 @@ class RateFunction:
             return self.a * exo_states[self.exo_index]
 
         def str(self) -> str:
-            return f"{self.a} * TF[{self.exo_index}]"
+            return f"${self.a} \cdot TF_{{{self.exo_index}}}$"
 
     class Hill(Function):
         def __init__(self, a: float, b: float, exo_index: int):
@@ -47,4 +47,4 @@ class RateFunction:
             )
 
         def str(self) -> str:
-            return f"({self.a} * TF[{self.exo_index}]) / ({self.b} + TF[{self.exo_index}])"
+            return f"$\\frac{{{self.a} \cdot TF_{{{self.exo_index}}}}}{{{self.b} + TF_{{{self.exo_index}}}}}$"
