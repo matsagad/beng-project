@@ -1,6 +1,6 @@
 from typing import List
 from models.rates.function import RateFunction
-from nptyping import NDArray, Shape, Float
+from nptyping import NDArray, Shape, Float, Int
 from scipy.linalg import expm
 import numpy as np
 
@@ -21,9 +21,22 @@ class PromoterModel:
 
         # Only active state is last state by default
         self.active_states = np.zeros(len(rate_fn_matrix), dtype=bool)
-        self.active_states[-1] = 1
+        self.active_states[-1] = True
         # (should be changed for models with more than one active
         # state, e.g. competing activator)
+
+    def with_init_state(
+        self, init_state: NDArray[Shape["Any"], Int]
+    ) -> "PromoterModel":
+        self.init_state = init_state
+        return self
+
+    def with_active_states(
+        self, active_states: NDArray[Shape["Any"], Int]
+    ) -> "PromoterModel":
+        self.active_states = np.zeros(len(self.rate_fn_matrix), dtype=bool)
+        self.active_states[active_states] = True
+        return self
 
     def get_generator(
         self, exogenous_data: NDArray[Shape["Any, Any, Any"], Float]
