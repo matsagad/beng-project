@@ -21,20 +21,20 @@ class OneStepSimulator(StochasticSimulator):
         self.tau = tau
         self.deterministic = deterministic
 
-    def simulate(self, model: PromoterModel) -> NDArray[Shape["Any, Any, Any, Any"], Float]:
-        # Initialise state
-        state = np.tile(model.init_state, (self.batch_size, 1))
-        
+    def simulate(
+        self, model: PromoterModel
+    ) -> NDArray[Shape["Any, Any, Any, Any"], Float]:
         # TODO: adapt model.get_matrix_exp to allow batching of environment stress
         #       and the other calculations too.
         #       before that, maybe try using a for loop
         env_states = []
         for data in self.exogenous_data:
+            # Initialise state
+            state = np.tile(model.init_state, (self.batch_size, 1))
+
             # Pre-calculate matrix exponentials for all time points and batches
             # (shift axes to allow ease in enumeration)
-            matrix_exps = np.moveaxis(
-                model.get_matrix_exp(data, self.tau), 0, -1
-            )
+            matrix_exps = np.moveaxis(model.get_matrix_exp(data, self.tau), 0, -1)
 
             # Sample random numbers in batches
             rand_nums = np.random.uniform(size=(len(matrix_exps), self.batch_size))
@@ -61,7 +61,7 @@ class OneStepSimulator(StochasticSimulator):
                     state[np.arange(self.batch_size), chosen] = 1
 
                 states.append(state)
-            
+
             env_states.append(states)
 
         return np.array(env_states)
