@@ -6,7 +6,7 @@ from utils.data_processing import scaleTS
 import numpy as np
 
 
-def import_gluc_data(fname="gluc_data_all.npy", save=True):
+def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
     try:
         return np.load(fname)
     except:
@@ -25,7 +25,7 @@ def import_gluc_data(fname="gluc_data_all.npy", save=True):
         return full_data
 
 
-def import_data(fname="data_all.npy", save=True):
+def import_data(fname="cache/data_all.npy", save=True):
     try:
         return np.load(fname)
     except:
@@ -64,19 +64,25 @@ def main():
     single_environment = np.array(data[:1])
 
     # Set-up model
-    tf_index = 2
+    tf_index = 0
     a, b, c = 1.0e-3, 1.0e-2, 1.0e-2
 
     model = PromoterModel(
         rate_fn_matrix=[
-            [None, None, RF.Linear(a, tf_index)],
-            [RF.Constant(b), None, None],
-            [None, RF.Constant(c), None],
+            [None, None, None, RF.Constant(a)],
+            [None, None, None, RF.Constant(b)],
+            [None, None, None, RF.Constant(c)],
+            [
+                RF.Linear(a, tf_index),
+                RF.Linear(b, tf_index + 1),
+                RF.Linear(c, tf_index + 2),
+                None,
+            ],
         ]
-    )
+    ).with_active_states([0, 1, 2])
 
-    model.visualise()
-    
+    model.visualise(save=True)
+
     pipeline = OneStepDecodingPipeline(data)
     pipeline.evaluate(model, verbose=True)
 

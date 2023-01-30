@@ -71,7 +71,7 @@ class PromoterModel:
     ) -> NDArray[Shape["Any, Any, Any"], Float]:
         return expm(tau * self.get_generator(exogenous_data))
 
-    def visualise(self, save: bool = False) -> None:
+    def visualise(self, save: bool = False, fname: str = "cache/model.png") -> None:
         from igraph import Graph, plot
         import matplotlib.pyplot as plt
         from matplotlib import rcParams
@@ -124,7 +124,7 @@ class PromoterModel:
         plot(graph, target=ax, **visual_style)
 
         if save:
-            plt.savefig("model.png", dpi=180, bbox_inches="tight", pad_inches=0)
+            plt.savefig(fname, dpi=180, bbox_inches="tight", pad_inches=0)
             return
 
         plt.show()
