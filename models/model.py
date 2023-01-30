@@ -71,9 +71,15 @@ class PromoterModel:
     ) -> NDArray[Shape["Any, Any, Any"], Float]:
         return expm(tau * self.get_generator(exogenous_data))
 
-    def visualise(self) -> None:
-        from igraph import Graph, plot, color_name_to_rgb
+    def visualise(self, save: bool = False) -> None:
+        from igraph import Graph, plot
         import matplotlib.pyplot as plt
+        from matplotlib import rcParams
+
+        rcParams["text.usetex"] = True
+
+        # Colors are from the "marumaru gum" palette by sukinapan!
+        palette = ["#96beb1", "#fda9a9", "#f3eded"]
 
         num_states = len(self.active_states)
 
@@ -82,13 +88,13 @@ class PromoterModel:
 
         properties = np.zeros((num_states, 2), dtype=object)
         properties[self.active_states, 0] = [
-            f"A_{i}" for i in range(sum(self.active_states))
+            f"$A_{i}$" for i in range(sum(self.active_states))
         ]
-        properties[self.active_states, 1] = "springgreen"
+        properties[self.active_states, 1] = palette[0]
         properties[~self.active_states, 0] = [
-            f"I_{i}" for i in range(sum(1 - self.active_states))
+            f"$I_{i}$" for i in range(sum(1 - self.active_states))
         ]
-        properties[~self.active_states, 1] = "tomato"
+        properties[~self.active_states, 1] = palette[1]
 
         graph.vs["label"] = properties[:, 0]
         graph.vs["color"] = properties[:, 1]
@@ -101,11 +107,24 @@ class PromoterModel:
         ]
         graph.add_edges([edge for edge, _ in edges])
         graph.es["label"] = [label for _, label in edges]
+        graph.es["label_size"] = 12
 
         visual_style = {
-            "bbox": (400, 400),
-            "margin": 100,
-            "vertex_size": 50,
-            "edge_curved": 0,
+            # "edge_curved": 0,
+            "background": None,
+            "edge_label": graph.es["label"],
+            "edge_background": palette[2],
         }
-        plot(graph, "model.png", **visual_style)
+
+        fig, ax = plt.subplots()
+        ax.set_facecolor(palette[2])
+        ax.set_aspect(1)
+        fig.set_facecolor(palette[2])
+
+        plot(graph, target=ax, **visual_style)
+
+        if save:
+            plt.savefig("model.png", dpi=180, bbox_inches="tight", pad_inches=0)
+            return
+
+        plt.show()
