@@ -73,7 +73,13 @@ class PromoterModel:
     ) -> NDArray[Shape["Any, Any, Any"], Float]:
         return expm(tau * self.get_generator(exogenous_data))
 
-    def visualise(self, save: bool = False, fname: str = "cache/model.png") -> None:
+    def visualise(
+        self,
+        save: bool = False,
+        fname: str = "cache/model.png",
+        transparent: bool = False,
+        target_ax: any = None,
+    ) -> None:
         from igraph import Graph, plot
         import matplotlib.pyplot as plt
         from matplotlib import rcParams
@@ -115,13 +121,19 @@ class PromoterModel:
             # "edge_curved": 0,
             "background": None,
             "edge_label": graph.es["label"],
-            "edge_background": palette[2],
+            "edge_background": "white" if transparent else palette[2],
         }
 
         fig, ax = plt.subplots()
-        ax.set_facecolor(palette[2])
         ax.set_aspect(1)
-        fig.set_facecolor(palette[2])
+
+        if not transparent:
+            ax.set_facecolor(palette[2])
+            fig.set_facecolor(palette[2])
+
+        if target_ax is not None:
+            plot(graph, target=target_ax, **visual_style)
+            return
 
         plot(graph, target=ax, **visual_style)
 
