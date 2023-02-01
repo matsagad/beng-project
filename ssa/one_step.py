@@ -14,56 +14,69 @@ class OneStepSimulator(StochasticSimulator):
         self,
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tau: float,
-        deterministic: bool = False,
+        realised: bool = False,
     ):
         self.exogenous_data = exogenous_data
-        self.batch_size = self.exogenous_data.shape[2]
+        self.num_classes, _, self.batch_size, _ = self.exogenous_data.shape
         self.tau = tau
-        self.deterministic = deterministic
+        self.realised = realised
 
     def simulate(
         self, model: PromoterModel
-    ) -> NDArray[Shape["Any, Any, Any, Any"], Float]:
-        # TODO: adapt model.get_matrix_exp to allow batching of environment stress
-        #       and the other calculations too.
-        #       before that, maybe try using a for loop
-        env_states = []
-        for data in self.exogenous_data:
-            # Initialise state
-            state = np.tile(model.init_state, (self.batch_size, 1))
+    ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
 
-            # Pre-calculate matrix exponentials for all time points and batches
-            # (shift axes to allow ease in enumeration)
-            matrix_exps = np.moveaxis(model.get_matrix_exp(data, self.tau), 0, -1)
-            # dimensions are: # of times, # of states, # of states, batch size
+        # Initialise state
+        state = np.tile(
+            model.realised_init_state if self.realised else model.init_state,
+            (self.num_classes, self.batch_size, 1),
+        )
+        ## dimensions are: # of classes, batch size, # of states
 
-            # Sample random numbers in batches
-            rand_nums = np.random.uniform(size=(len(matrix_exps), self.batch_size))
+        # Pre-calculate matrix exponentials for all time points and batches
+        # (shift axes to allow ease in enumeration)
+        TIME_AXIS = 2
+        matrix_exps = np.moveaxis(
+            model.get_matrix_exp(self.exogenous_data, self.tau), TIME_AXIS, 0
+        )
+        ## dimensions are: # of times, # of classes, batch size, # of states, # of states
 
-            num_states = state.shape[-1]
-            states = [state]
+        states = [state]
 
-            for (matrix_exp, rand_num) in zip(matrix_exps, rand_nums):
+        # Find probability distribution trajectory
+        if not self.realised:
+            for matrix_exp in matrix_exps:
                 # Multiply state: P(0) and matrix_exp: e^At
-                # (einsum used to multiply tensors and allow batching)
-                prob_dist = np.einsum("ij,jki->ik", state, matrix_exp)
-
-                if not self.deterministic:
-                    state = prob_dist
-                else:
-                    # Choose state based on random number and probability distribution
-                    chosen = list(
-                        arr.searchsorted(num)
-                        for arr, num in zip(np.cumsum(prob_dist, axis=1), rand_num)
-                    )
-
-                    # Update the state
-                    state = np.zeros((self.batch_size, num_states))
-                    state[np.arange(self.batch_size), chosen] = 1
-
+                # (use einsum to multiply tensors and allow batching)
+                prob_dist = np.einsum("ijk,ijkl->ijl", state, matrix_exp)
+                state = prob_dist
                 states.append(state)
 
-            env_states.append(states)
+            return np.array(states)
 
-        return np.array(env_states)
-        
+        # Find realised trajectory
+        ## Sample random numbers in batches
+        rand_mats = np.random.uniform(
+            size=(len(matrix_exps), self.num_classes, self.batch_size)
+        )
+
+        STATE_AXIS = 2
+        for (matrix_exp, rand_mat) in zip(matrix_exps, rand_mats):
+            prob_dist = np.einsum("ijk,ijkl->ijl", state, matrix_exp)
+
+            chosen = []
+            for env_id, env_pair in enumerate(
+                zip(np.cumsum(prob_dist, axis=STATE_AXIS), rand_mat)
+            ):
+                env, rand_vec = env_pair
+                for batch_id, batch_pair in enumerate(zip(env, rand_vec)):
+                    batch, rand_num = batch_pair
+                    chosen.append((env_id, batch_id, batch.searchsorted(rand_num)))
+            
+            # Update the state
+            state = np.zeros(state.shape)
+
+            state[tuple(np.array(chosen).T)] = 1
+
+            states.append(state)
+
+        return np.array(states)
