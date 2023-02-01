@@ -35,6 +35,7 @@ class OneStepSimulator(StochasticSimulator):
             # Pre-calculate matrix exponentials for all time points and batches
             # (shift axes to allow ease in enumeration)
             matrix_exps = np.moveaxis(model.get_matrix_exp(data, self.tau), 0, -1)
+            # dimensions are: # of times, # of states, # of states, batch size
 
             # Sample random numbers in batches
             rand_nums = np.random.uniform(size=(len(matrix_exps), self.batch_size))
@@ -65,3 +66,4 @@ class OneStepSimulator(StochasticSimulator):
             env_states.append(states)
 
         return np.array(env_states)
+        
