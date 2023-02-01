@@ -47,47 +47,49 @@ class PromoterModel:
         return self
 
     def get_generator(
-        self, exogenous_data: NDArray[Shape["Any, Any, Any"], Float]
-    ) -> NDArray[Shape["Any, Any, Any, Any"], Float]:
+        self, exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float]
+    ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
         """
         Args:
             exogenous_data: an array of exogenous data with dimensions:
-                            # of TFs, batch size, # of times
+                            # of classes, # of TFs, batch size, # of times
 
         Returns:
             An array of generator matrices with dimensions:
-            batch size, # of times, # of states, # of states
+            # of classes, batch size, # of times, # of states, # of states
         """
-        num_tfs, batch_size, num_states = exogenous_data.shape
-        rate_fn_len = exogenous_data.shape[1:]
+        TIME_AXIS = len(exogenous_data.shape) - 1
+
+        # swap # of tfs and # of classes axes
+        tf_iterable_data = np.moveaxis(exogenous_data, 1, 0)
+        batched_rate_shape = tf_iterable_data.shape[1:]
 
         generator = np.stack(
             [
                 np.stack(
                     [
-                        np.zeros(rate_fn_len)
+                        np.zeros(batched_rate_shape)
                         if not rate_fn
-                        else rate_fn.evaluate(exogenous_data)
+                        else rate_fn.evaluate(tf_iterable_data)
                         for rate_fn in row
                     ],
-                    axis=2,
+                    axis=TIME_AXIS,
                 )
                 for row in self.rate_fn_matrix
             ],
-            axis=2,
+            axis=TIME_AXIS,
         )
+        # generator shape is: # of classes, batch size, # of times, # of states, # of states
 
-        for batch in range(batch_size):
-            for state in range(num_states):
-                np.fill_diagonal(
-                    generator[batch, state], -np.sum(generator[batch, state], axis=1)
-                )
+        RATE_MATRIX_ROW_AXIS = len(generator.shape) - 1
+        row, col = np.diag_indices_from(generator[0, 0, 0])
+        generator[:, :, :, row, col] = -generator.sum(axis=RATE_MATRIX_ROW_AXIS)
 
         return generator
 
     def get_matrix_exp(
-        self, exogenous_data: NDArray[Shape["Any, Any, Any"], Float], tau: float
-    ) -> NDArray[Shape["Any, Any, Any, Any"], Float]:
+        self, exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float], tau: float
+    ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
         return expm(tau * self.get_generator(exogenous_data))
 
     def visualise(
