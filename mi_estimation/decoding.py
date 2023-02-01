@@ -15,6 +15,9 @@ class DecodingEstimator(MIEstimator):
         model: PromoterModel,
         trajectory: NDArray[Shape["Any, Any, Any, Any"], Float],
     ) -> float:
+        CLASS_AXIS = 1
+        trajectory = np.moveaxis(trajectory, CLASS_AXIS, 0)
+
         active_states = model.active_states
         rich_state = None
         states = []

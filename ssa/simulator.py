@@ -18,7 +18,7 @@ class StochasticSimulator(ABC):
 
         Returns:
             A time series of the model's state. Its dimensions are given
-            by: # of classes, # of time stamps, batch size, # of model states.
+            by: # of times, # of classes, batch size, # of states.
         """
         pass
 
@@ -35,9 +35,9 @@ class StochasticSimulator(ABC):
         from matplotlib import rcParams
         import numpy as np
 
-        rcParams["text.usetex"] = True
-
-        num_classes, num_times, batch_size, num_states = trajectory.shape
+        # rcParams["text.usetex"] = True
+        
+        num_times, num_classes, batch_size, num_states = trajectory.shape
         x = np.arange(num_times)
 
         fig, axes = plt.subplots(1, num_classes, sharey=True)
@@ -68,9 +68,9 @@ class StochasticSimulator(ABC):
             for state in range(num_states):
                 ax.plot(
                     x,
-                    np.average(trajectory[env_class, :, :, state], axis=1)
+                    np.average(trajectory[:, env_class, :, state], axis=1)
                     if average
-                    else trajectory[env_class, :, batch_num, state],
+                    else trajectory[:, env_class, batch_num, state],
                     label=(labels[state] if labels is not None else None),
                     color=(colors[state] if colors is not None else None),
                 )

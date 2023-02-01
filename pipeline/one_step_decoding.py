@@ -20,7 +20,7 @@ class OneStepDecodingPipeline(Pipeline):
     ):
         super().__init__(
             simulator=OneStepSimulator(
-                exogenous_data, tau, deterministic=deterministic
+                exogenous_data, tau, realised=deterministic
             ),
             estimator=DecodingEstimator(origin, interval),
         )
