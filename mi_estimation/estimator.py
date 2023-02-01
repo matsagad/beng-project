@@ -19,7 +19,7 @@ class MIEstimator(ABC):
         Args:
             model       : promoter model responsible for the trajectory
             trajectory  : time series of the model states; dimensions are:
-                          # of classes, # of time stamps, batch size, # of model states
+                          # of time stamps, # of classes, batch size, # of model states
 
         Returns:
             A float value corresponding to the MI.
