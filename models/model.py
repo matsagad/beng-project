@@ -15,11 +15,11 @@ class PromoterModel:
         """
         self.rate_fn_matrix = rate_fn_matrix
 
-        # Initial state is uniform distribution
+        # Probabilistic initial state is uniform distribution
         self.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
-        # (could also deterministically set one initial state)
-        # self.init_state = np.zeros(len(rate_fn_matrix), dtype=int)
-        # self.init_state[0] = 1
+        # Realised initial state is first state by default
+        self.realised_init_state = np.zeros(len(rate_fn_matrix), dtype=int)
+        self.realised_init_state[0] = 1
 
         # Only active state is last state by default
         self.active_states = np.zeros(len(rate_fn_matrix), dtype=bool)
@@ -31,6 +31,12 @@ class PromoterModel:
         self, init_state: NDArray[Shape["Any"], Int]
     ) -> "PromoterModel":
         self.init_state = init_state
+        return self
+
+    def with_realised_init_state(
+        self, realised_init_state: NDArray[Shape["Any"], Int]
+    ) -> "PromoterModel":
+        self.realised_init_state = realised_init_state
         return self
 
     def with_active_states(
