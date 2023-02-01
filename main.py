@@ -5,6 +5,7 @@ from ssa.one_step import OneStepSimulator
 from utils.data_processing import scaleTSall
 from utils.data_processing import scaleTS
 import numpy as np
+import time
 
 
 def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
@@ -66,7 +67,7 @@ class Examples:
 
             # Set-up model
             tf_index = 0
-            a, b, c = 1.0e-3, 1.0e-2, 1.0e-2
+            a, b, c = 1.0e-2, 1.0e-2, 1.0e-2
 
             model = PromoterModel(
                 rate_fn_matrix=[
@@ -116,7 +117,7 @@ class Examples:
             # Set-up model
             tf_index = 0
             a, b, c = 1.0e-3, 1.0e-2, 1.0e-2
-    
+
             model = PromoterModel(
                 rate_fn_matrix=[
                     [None, None, None, RF.Constant(a)],
@@ -144,9 +145,105 @@ class Examples:
                 trajectories, average=False, batch_num=1
             )
 
+        def visualise_realised_probabilistic_trajectories():
+            # Import data
+            data = import_data()
+
+            # Set-up models
+            tf_index = 0
+            a, b = 1.0e-2, 1.0e-2
+            rate_fn_matrix = [[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
+
+            ## Initial state: [1, 0]
+            model = (
+                PromoterModel(rate_fn_matrix)
+                .with_active_states([1])
+                .with_init_state([1, 0])
+                .with_realised_init_state([1, 0])
+            )
+            print("Realised (initial: [1, 0])")
+            OneStepSimulator.visualise_trajectory(
+                OneStepSimulator(data, tau=2.5, realised=True).simulate(model),
+                model=model,
+            )
+
+            print("Probabilistic (initial: [1, 0])")
+            OneStepSimulator.visualise_trajectory(
+                OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
+                model=model,
+            )
+
+            ## Initial state: [0.5, 0.5]
+            model = (
+                PromoterModel(rate_fn_matrix)
+                .with_active_states([1])
+                .with_init_state([0.5, 0.5])
+                .with_realised_init_state([0.5, 0.5])
+            )
+            print("Realised (initial: [0.5, 0.5])")
+            OneStepSimulator.visualise_trajectory(
+                OneStepSimulator(data, tau=2.5, realised=True).simulate(model),
+                model=model,
+            )
+
+            print("Probabilistic (initial: [0.5, 0.5])")
+            OneStepSimulator.visualise_trajectory(
+                OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
+                model=model,
+            )
+
+    class Benchmarking:
+        def matrix_exponentials():
+            # Import data
+            data = import_data()
+
+            # Set-up model
+            tf_index = 0
+            a, b = 1.01e-2, 1.0e-2
+
+            model = PromoterModel(
+                rate_fn_matrix=[[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
+            ).with_active_states([1])
+            print(data.shape)
+
+            start = time.time()
+            mat = model.get_matrix_exp(data, 2.5)
+            print(time.time() - start)
+
+        def trajectory():
+            # Import data
+            data = import_data()
+
+            # Set-up model
+            tf_index = 0
+            a, b, c = 1.0e-2, 1.0e-2, 1.0e-2
+
+            model = (
+                PromoterModel(
+                    rate_fn_matrix=[
+                        [None, None, None, RF.Constant(a)],
+                        [None, None, None, RF.Constant(b)],
+                        [None, None, None, RF.Constant(c)],
+                        [
+                            RF.Linear(a, tf_index),
+                            RF.Linear(b, tf_index + 1),
+                            RF.Linear(c, tf_index + 2),
+                            None,
+                        ],
+                    ]
+                ).with_active_states([0, 1, 2])
+                # .with_realised_init_state([0.25, 0.25, 0.25, 0.25])
+            )
+
+            # Simulate
+            start = time.time()
+            sim = OneStepSimulator(data, tau=2.5, realised=False)
+            trajectories = sim.simulate(model)
+            print(time.time() - start)
+
 
 def main():
-    Examples.PlottingVisuals.visualise_trajectory_example()
+    Examples.Benchmarking.trajectory()
 
 
 if __name__ == "__main__":
