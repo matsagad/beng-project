@@ -15,22 +15,17 @@ class OneStepSimulator(StochasticSimulator):
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tau: float,
         realised: bool = False,
+        replicates: int = 10,
     ):
         self.exogenous_data = exogenous_data
         self.num_classes, _, self.batch_size, _ = self.exogenous_data.shape
         self.tau = tau
         self.realised = realised
+        self.replicates = replicates
 
     def simulate(
         self, model: PromoterModel
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
-
-        # Initialise state
-        state = np.tile(
-            model.realised_init_state if self.realised else model.init_state,
-            (self.num_classes, self.batch_size, 1),
-        )
-        ## dimensions are: # of classes, batch size, # of states
 
         # Pre-calculate matrix exponentials for all time points and batches
         # (shift axes to allow ease in enumeration)
@@ -40,10 +35,16 @@ class OneStepSimulator(StochasticSimulator):
         )
         ## dimensions are: # of times, # of classes, batch size, # of states, # of states
 
-        states = [state]
-
         # Find probability distribution trajectory
         if not self.realised:
+            # Initialise state
+            state = np.tile(
+                model.init_state,
+                (self.num_classes, self.batch_size, 1),
+            )
+            ## dimensions are: # of classes, batch size, # of states
+            states = [state]
+
             for matrix_exp in matrix_exps:
                 # Multiply state: P(0) and matrix_exp: e^At
                 # (use einsum to multiply tensors and allow batching)
@@ -54,6 +55,27 @@ class OneStepSimulator(StochasticSimulator):
             return np.array(states)
 
         # Find realised trajectory
+        ## Randomly initialise state
+        init_cdf = np.cumsum(model.init_state)
+        init_chosen = init_cdf.searchsorted(
+            np.random.uniform(size=(self.num_classes, self.batch_size))
+        )
+
+        state = np.zeros((self.num_classes, self.batch_size, len(model.init_state)))
+        state[
+            tuple(
+                np.array(
+                    [
+                        (*indices, chosen)
+                        for indices, chosen in np.ndenumerate(init_chosen)
+                    ]
+                ).T
+            )
+        ] = 1
+
+        ## dimensions are: # of classes, batch size, # of states
+        states = [state]
+
         ## Sample random numbers in batches
         rand_mats = np.random.uniform(
             size=(len(matrix_exps), self.num_classes, self.batch_size)
@@ -71,12 +93,10 @@ class OneStepSimulator(StochasticSimulator):
                 for batch_id, batch_pair in enumerate(zip(env, rand_vec)):
                     batch, rand_num = batch_pair
                     chosen.append((env_id, batch_id, batch.searchsorted(rand_num)))
-            
+
             # Update the state
             state = np.zeros(state.shape)
-
             state[tuple(np.array(chosen).T)] = 1
-
             states.append(state)
 
         return np.array(states)
