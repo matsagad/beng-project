@@ -18,7 +18,7 @@ class OneStepSimulator(StochasticSimulator):
         replicates: int = 10,
     ):
         self.exogenous_data = exogenous_data
-        self.num_classes, _, self.batch_size, _ = self.exogenous_data.shape
+        self.num_classes, _, self.batch_size, self.num_times = self.exogenous_data.shape
         self.tau = tau
         self.realised = realised
         self.replicates = replicates
@@ -55,13 +55,16 @@ class OneStepSimulator(StochasticSimulator):
             return np.array(states)
 
         # Find realised trajectory
+        num_model_states = len(model.init_state)
+
         ## Randomly initialise state
         init_cdf = np.cumsum(model.init_state)
         init_chosen = init_cdf.searchsorted(
-            np.random.uniform(size=(self.num_classes, self.batch_size))
+            np.random.uniform(size=(self.num_classes, self.batch_size, self.replicates))
         )
-
-        state = np.zeros((self.num_classes, self.batch_size, len(model.init_state)))
+        state = np.zeros(
+            (self.num_classes, self.batch_size, self.replicates, num_model_states)
+        )
         state[
             tuple(
                 np.array(
@@ -72,19 +75,18 @@ class OneStepSimulator(StochasticSimulator):
                 ).T
             )
         ] = 1
+        ## dimensions are: # of classes, batch size, # of replicates, # of states
 
-        ## dimensions are: # of classes, batch size, # of states
         states = [state]
 
         ## Sample random numbers in batches
         rand_mats = np.random.uniform(
-            size=(len(matrix_exps), self.num_classes, self.batch_size)
+            size=(self.num_times, self.num_classes, self.batch_size)
         )
 
-        STATE_AXIS = 2
+        STATE_AXIS = 3
         for (matrix_exp, rand_mat) in zip(matrix_exps, rand_mats):
-            prob_dist = np.einsum("ijk,ijkl->ijl", state, matrix_exp)
-
+            prob_dist = np.einsum("ijkl,ijlm->ijkm", state, matrix_exp)
             chosen = []
             for env_id, env_pair in enumerate(
                 zip(np.cumsum(prob_dist, axis=STATE_AXIS), rand_mat)
@@ -92,11 +94,20 @@ class OneStepSimulator(StochasticSimulator):
                 env, rand_vec = env_pair
                 for batch_id, batch_pair in enumerate(zip(env, rand_vec)):
                     batch, rand_num = batch_pair
-                    chosen.append((env_id, batch_id, batch.searchsorted(rand_num)))
+                    chosen.extend(
+                        (
+                            env_id,
+                            batch_id,
+                            replicate_id,
+                            replicate.searchsorted(rand_num),
+                        )
+                        for replicate_id, replicate in enumerate(batch)
+                    )
 
             # Update the state
             state = np.zeros(state.shape)
             state[tuple(np.array(chosen).T)] = 1
             states.append(state)
 
-        return np.array(states)
+        states = np.array(states)
+        return np.array(states).reshape((*(states.shape[:-3]), -1, states.shape[-1]))
