@@ -133,16 +133,20 @@ class Examples:
             ).with_active_states([0, 1, 2])
 
             # Simulate
-            sim = OneStepSimulator(data, tau=2.5)
+            sim = OneStepSimulator(data, tau=2.5, realised=True)
             trajectories = sim.simulate(model)
             print(trajectories.shape)
 
-            # Visualise average
-            OneStepSimulator.visualise_trajectory(trajectories, average=True)
-
             # Visualise single cell
+            print("Single-cell time series")
             OneStepSimulator.visualise_trajectory(
-                trajectories, average=False, batch_num=1
+                trajectories, model=model, average=False, batch_num=1
+            )
+
+            # Visualise average
+            print("Average-cell time series")
+            OneStepSimulator.visualise_trajectory(
+                trajectories, model=model, average=True
             )
 
         def visualise_realised_probabilistic_trajectories():
@@ -154,37 +158,17 @@ class Examples:
             a, b = 1.0e-2, 1.0e-2
             rate_fn_matrix = [[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
 
-            ## Initial state: [1, 0]
-            model = (
-                PromoterModel(rate_fn_matrix)
-                .with_active_states([1])
-                .with_init_state([1, 0])
-                .with_realised_init_state([1, 0])
-            )
-            print("Realised (initial: [1, 0])")
-            OneStepSimulator.visualise_trajectory(
-                OneStepSimulator(data, tau=2.5, realised=True).simulate(model),
-                model=model,
-            )
-
-            print("Probabilistic (initial: [1, 0])")
-            OneStepSimulator.visualise_trajectory(
-                OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
-                model=model,
-            )
-
             ## Initial state: [0.5, 0.5]
-            model = (
-                PromoterModel(rate_fn_matrix)
-                .with_active_states([1])
-                .with_init_state([0.5, 0.5])
-                .with_realised_init_state([0.5, 0.5])
-            )
-            print("Realised (initial: [0.5, 0.5])")
-            OneStepSimulator.visualise_trajectory(
-                OneStepSimulator(data, tau=2.5, realised=True).simulate(model),
-                model=model,
-            )
+            model = PromoterModel(rate_fn_matrix).with_active_states([1])
+
+            for _ in range(3):
+                print("Realised (initial: [0.5, 0.5])")
+                OneStepSimulator.visualise_trajectory(
+                    OneStepSimulator(
+                        data, tau=2.5, realised=True, replicates=100
+                    ).simulate(model),
+                    model=model,
+                )
 
             print("Probabilistic (initial: [0.5, 0.5])")
             OneStepSimulator.visualise_trajectory(
@@ -218,22 +202,39 @@ class Examples:
             tf_index = 0
             a, b, c = 1.0e-2, 1.0e-2, 1.0e-2
 
-            model = (
-                PromoterModel(
-                    rate_fn_matrix=[
-                        [None, None, None, RF.Constant(a)],
-                        [None, None, None, RF.Constant(b)],
-                        [None, None, None, RF.Constant(c)],
-                        [
-                            RF.Linear(a, tf_index),
-                            RF.Linear(b, tf_index + 1),
-                            RF.Linear(c, tf_index + 2),
-                            None,
-                        ],
-                    ]
-                ).with_active_states([0, 1, 2])
-                # .with_realised_init_state([0.25, 0.25, 0.25, 0.25])
-            )
+            ## Initial state: [1, 0]
+            model = PromoterModel(
+                rate_fn_matrix=[[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
+            ).with_active_states([1])
+
+            # model = PromoterModel(
+            #     rate_fn_matrix=[
+            #         [None, None, RF.Constant(a)],
+            #         [None, None, RF.Constant(b)],
+            #         [
+            #             RF.Linear(a, tf_index),
+            #             RF.Linear(b, tf_index + 1),
+            #             None,
+            #         ],
+            #     ]
+            # ).with_active_states([0, 1])
+
+            # model = (
+            #     PromoterModel(
+            #         rate_fn_matrix=[
+            #             [None, None, None, RF.Constant(a)],
+            #             [None, None, None, RF.Constant(b)],
+            #             [None, None, None, RF.Constant(c)],
+            #             [
+            #                 RF.Linear(a, tf_index),
+            #                 RF.Linear(b, tf_index + 1),
+            #                 RF.Linear(c, tf_index + 2),
+            #                 None,
+            #             ],
+            #         ]
+            #     ).with_active_states([0, 1, 2])
+            #     # .with_realised_init_state([0.25, 0.25, 0.25, 0.25])
+            # )
 
             # Simulate
             start = time.time()
@@ -243,7 +244,11 @@ class Examples:
 
 
 def main():
-    Examples.Benchmarking.trajectory()
+    # Examples.Benchmarking.trajectory()
+    # Examples.PlottingVisuals.visualise_model_example()
+    # Examples.PlottingVisuals.visualise_trajectory_example()
+    Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
+    # Examples.UsingThePipeline.pipeline_example()
 
 
 if __name__ == "__main__":
