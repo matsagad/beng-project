@@ -4,9 +4,10 @@ from models.model import PromoterModel
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 import matplotlib.pyplot as plt
 import time
-
+from multiprocessing.pool import ThreadPool
 
 class GridSearch:
+    
     def optimise(self, exogenous_data):
         on_count, off_count = 10, 10
         fname_temp = f"cache/res_real_tf{{tf_index}}_{on_count}_{off_count}.npy"
@@ -16,10 +17,8 @@ class GridSearch:
         num_tfs = exogenous_data.shape[1]  # 4
         res_real = np.zeros((num_tfs, on_count, off_count))
 
-        start = time.time()
-        print("0.00%")
-
-        for tf in range(num_tfs):
+        def single_grid_search(tf: int):
+            print(f"Starting grid search for TF{tf}")
             try:
                 res_real[tf] = np.load(fname_temp.format(tf_index=tf))
                 print(f"Used cached TF{tf} data")
@@ -34,12 +33,17 @@ class GridSearch:
                         )
                         res_real[tf, i, j] = pip_real.evaluate(model)
                         print(
-                            f"{'%.2f' % (100 * (i * off_count + j + 1) / (on_count * off_count))}%"
+                            f"TF{tf}-{'%.2f' % (100 * (i * off_count + j + 1) / (on_count * off_count))}%"
                         )
                 np.save(fname_temp.format(tf_index=tf), res_real[tf])
                 print(f"Cached TF{tf} data")
-            print(f"{tf}/{num_tfs} TFs done.")
+        
+        start = time.time()
+        print("0.00%")
 
+        with ThreadPool(10) as pool:
+            pool.map(single_grid_search, [i for i in range(num_tfs)])
+        
         print(f"{time.time() - start}s elapsed")
 
         fig, axes = plt.subplots(1, num_tfs, sharey=True)
