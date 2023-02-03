@@ -15,7 +15,7 @@ class OneStepSimulator(StochasticSimulator):
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tau: float,
         realised: bool = False,
-        replicates: int = 10,
+        replicates: int = 1,
     ):
         self.exogenous_data = exogenous_data
         self.num_classes, _, self.batch_size, self.num_times = self.exogenous_data.shape
