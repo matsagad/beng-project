@@ -8,7 +8,7 @@ import time
 
 class GridSearch:
     def optimise(self, exogenous_data):
-        on_count, off_count = 4, 4
+        on_count, off_count = 10, 10
         fname_temp = f"cache/res_real_tf{{tf_index}}_{on_count}_{off_count}.npy"
         pip_real = OneStepDecodingPipeline(exogenous_data, realised=True)
 
@@ -22,7 +22,7 @@ class GridSearch:
         for tf in range(num_tfs):
             try:
                 res_real[tf] = np.load(fname_temp.format(tf_index=tf))
-                print(f"cached TF{tf} data")
+                print(f"Used cached TF{tf} data")
             except:
                 for i, k_on in enumerate(np.logspace(-2, 2, num=on_count)):
                     for j, k_off in enumerate(np.logspace(-2, 2, num=off_count)):
@@ -32,16 +32,15 @@ class GridSearch:
                                 [RF.Constant(k_off), None],
                             ]
                         )
-                        res_real[i, j] = pip_real.evaluate(model)
+                        res_real[tf, i, j] = pip_real.evaluate(model)
                         print(
                             f"{'%.2f' % (100 * (i * off_count + j + 1) / (on_count * off_count))}%"
                         )
+                np.save(fname_temp.format(tf_index=tf), res_real[tf])
+                print(f"Cached TF{tf} data")
             print(f"{tf}/{num_tfs} TFs done.")
 
         print(f"{time.time() - start}s elapsed")
-
-        for tf in range(num_tfs):
-            np.save(fname_temp.format(tf_index=tf), res_real[tf])
 
         fig, axes = plt.subplots(1, num_tfs, sharey=True)
 
