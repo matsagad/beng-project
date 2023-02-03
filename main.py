@@ -1,5 +1,6 @@
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
+from optimisation.grid_search import GridSearch
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from ssa.one_step import OneStepSimulator
 from utils.data_processing import scaleTSall
@@ -161,14 +162,13 @@ class Examples:
             ## Initial state: [0.5, 0.5]
             model = PromoterModel(rate_fn_matrix).with_active_states([1])
 
-            for _ in range(3):
-                print("Realised (initial: [0.5, 0.5])")
-                OneStepSimulator.visualise_trajectory(
-                    OneStepSimulator(
-                        data, tau=2.5, realised=True, replicates=100
-                    ).simulate(model),
-                    model=model,
-                )
+            print("Realised (initial: [0.5, 0.5])")
+            OneStepSimulator.visualise_trajectory(
+                OneStepSimulator(data, tau=2.5, realised=True, replicates=3).simulate(
+                    model
+                ),
+                model=model,
+            )
 
             print("Probabilistic (initial: [0.5, 0.5])")
             OneStepSimulator.visualise_trajectory(
@@ -242,13 +242,20 @@ class Examples:
             trajectories = sim.simulate(model)
             print(time.time() - start)
 
+    class Optimisation:
+        def grid_search():
+            data = import_data()
+            gs = GridSearch()
+            gs.optimise(data)
+
 
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
-    Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
+    # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.UsingThePipeline.pipeline_example()
+    Examples.Optimisation.grid_search()
 
 
 if __name__ == "__main__":
