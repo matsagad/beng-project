@@ -5,15 +5,14 @@ from pipeline.one_step_decoding import OneStepDecodingPipeline
 import matplotlib.pyplot as plt
 import time
 from multiprocessing.pool import ThreadPool
+import os.path
 
 
 class GridSearch:
     def optimise(self, exogenous_data):
         on_count, off_count = 10, 10
-        replicates = 2
-        fname_temp = (
-            f"cache/res_real_tf{{tf_index}}_reps{replicates}_{on_count}_{off_count}.npy"
-        )
+        replicates = 5
+        fname_temp = f"cache/res_real_tf{{tf_index}}_dt_reps{replicates}_{on_count}_{off_count}.npy"
         pip_real = OneStepDecodingPipeline(
             exogenous_data, realised=True, replicates=replicates
         )
@@ -23,30 +22,31 @@ class GridSearch:
         res_real = np.zeros((num_tfs, on_count, off_count))
 
         def single_grid_search(tf: int):
+            fname = fname_temp.format(tf_index=tf)
             print(f"Starting grid search for TF{tf}")
-            try:
-                res_real[tf] = np.load(fname_temp.format(tf_index=tf))
+            if os.path.isfile(fname):
+                res_real[tf] = np.load(fname)
                 print(f"Used cached TF{tf} data")
-            except:
-                for i, k_on in enumerate(np.logspace(-2, 2, num=on_count)):
-                    for j, k_off in enumerate(np.logspace(-2, 2, num=off_count)):
-                        model = PromoterModel(
-                            rate_fn_matrix=[
-                                [None, RF.Linear(k_on, tf)],
-                                [RF.Constant(k_off), None],
-                            ]
-                        )
-                        res_real[tf, i, j] = pip_real.evaluate(model)
-                        print(
-                            f"TF{tf}-{'%.2f' % (100 * (i * off_count + j + 1) / (on_count * off_count))}%"
-                        )
-                np.save(fname_temp.format(tf_index=tf), res_real[tf])
-                print(f"Cached TF{tf} data")
+                return
+            for i, k_on in enumerate(np.logspace(-2, 2, num=on_count)):
+                for j, k_off in enumerate(np.logspace(-2, 2, num=off_count)):
+                    model = PromoterModel(
+                        rate_fn_matrix=[
+                            [None, RF.Linear(k_on, tf)],
+                            [RF.Constant(k_off), None],
+                        ]
+                    )
+                    res_real[tf, i, j] = pip_real.evaluate(model)
+                    print(
+                        f"TF{tf}-{'%.2f' % (100 * (i * off_count + j + 1) / (on_count * off_count))}%"
+                    )
+            np.save(fname_temp.format(tf_index=tf), res_real[tf])
+            print(f"Cached TF{tf} data")
 
         start = time.time()
         print("0.00%")
 
-        with ThreadPool(10) as pool:
+        with ThreadPool(4) as pool:
             pool.map(single_grid_search, [i for i in range(num_tfs)])
 
         print(f"{time.time() - start}s elapsed")
