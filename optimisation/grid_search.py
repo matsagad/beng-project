@@ -10,8 +10,9 @@ class GridSearch:
     
     def optimise(self, exogenous_data):
         on_count, off_count = 10, 10
-        fname_temp = f"cache/res_real_tf{{tf_index}}_{on_count}_{off_count}.npy"
-        pip_real = OneStepDecodingPipeline(exogenous_data, realised=True)
+        replicates = 2
+        fname_temp = f"cache/res_real_tf{{tf_index}}_reps{replicates}_{on_count}_{off_count}.npy"
+        pip_real = OneStepDecodingPipeline(exogenous_data, realised=True, replicates=replicates)
 
         tf_names = ["msn2", "sfp1", "dot6", "maf1"]
         num_tfs = exogenous_data.shape[1]  # 4
