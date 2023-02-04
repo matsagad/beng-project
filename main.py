@@ -183,31 +183,37 @@ class Examples:
             model = Examples.models[2]
 
             # Simulate
-            start = time.time()
+            for replicates in [1, 1, 5, 10, 50]:
+                repeats, total = 10, 0
+                for _ in range(repeats):
+                    start = time.time()
 
-            sim = OneStepSimulator(data, tau=2.5, realised=False)
-            trajectories = sim.simulate(model)
+                    sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
+                    trajectories = sim.simulate(model)
 
-            print(time.time() - start)
+                    total += time.time() - start
+                
+                print(f"{replicates} replicates: {total / repeats}")
 
         def mi_estimation():
             data = import_data()
             model = Examples.models[2]
 
-            # Simulate
-            sim = OneStepSimulator(data, tau=2.5, realised=False, replicates=1)
-            trajectories = sim.simulate(model)
+            for replicates in [1, 1, 5, 10, 50]:
+                # Simulate
+                sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
+                trajectories = sim.simulate(model)
 
-            # Estimate MI
-            origin = OneStepDecodingPipeline.FIXED_ORIGIN
-            interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval)
+                # Estimate MI
+                origin = OneStepDecodingPipeline.FIXED_ORIGIN
+                interval = OneStepDecodingPipeline.FIXED_INTERVAL
+                est = DecodingEstimator(origin, interval)
 
-            print("Estimating MI...")
-            start = time.time()
-            mi_score = est.estimate(model, trajectories)
-            print(time.time() - start)
-            print(f"MI: {mi_score}")
+                print("Estimating MI...")
+                start = time.time()
+                mi_score = est.estimate(model, trajectories)
+                print(f"{replicates} replicates: {time.time() - start}")
+                print(f"MI: {mi_score}")
 
     class Optimisation:
         def grid_search():
