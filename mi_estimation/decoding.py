@@ -1,7 +1,8 @@
 from mi_estimation.estimator import MIEstimator
 from nptyping import NDArray, Shape, Float
 from models.model import PromoterModel
-from utils.mi_decoding import estimateMIS
+# from utils.mi_decoding import estimateMIS
+from utils.mi_decoding_dt import estimateMIS
 import numpy as np
 
 
