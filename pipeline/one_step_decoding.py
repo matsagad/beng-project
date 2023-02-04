@@ -15,12 +15,13 @@ class OneStepDecodingPipeline(Pipeline):
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tau: float = FIXED_TIME_DELTA,
         realised: bool = False,
+        replicates: int = 1,
         origin: int = FIXED_ORIGIN,
         interval: int = FIXED_INTERVAL,
     ):
         super().__init__(
             simulator=OneStepSimulator(
-                exogenous_data, tau, realised=realised
+                exogenous_data, tau, realised=realised, replicates=replicates
             ),
             estimator=DecodingEstimator(origin, interval),
         )
