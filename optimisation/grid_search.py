@@ -56,7 +56,7 @@ class GridSearch:
             ax.title.set_text(tf_names[i])
             im = ax.imshow(
                 res,
-                cmap="magma",
+                cmap="rainbow",
                 extent=(-2, 2, -2, 2),
                 aspect="equal",
                 interpolation="none",
