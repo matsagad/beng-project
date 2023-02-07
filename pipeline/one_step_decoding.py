@@ -18,12 +18,13 @@ class OneStepDecodingPipeline(Pipeline):
         replicates: int = 1,
         origin: int = FIXED_ORIGIN,
         interval: int = FIXED_INTERVAL,
+        classifier_name: str = "svm",
     ):
         super().__init__(
             simulator=OneStepSimulator(
                 exogenous_data, tau, realised=realised, replicates=replicates
             ),
-            estimator=DecodingEstimator(origin, interval),
+            estimator=DecodingEstimator(origin, interval, classifier_name),
         )
 
     def evaluate(self, model: PromoterModel, verbose: bool = False) -> float:
