@@ -9,16 +9,24 @@ import os.path
 
 
 class GridSearch:
-    def optimise(self, exogenous_data):
+    def optimise_simple(self, exogenous_data):
         on_count, off_count = 10, 10
+        low_bound, up_bound = -2, 2
         replicates = 5
-        fname_temp = f"cache/res_real_tf{{tf_index}}_dt_reps{replicates}_{on_count}_{off_count}.npy"
+        classifier = "decision_tree"
+        single_env, single_tf = False, False
+
+        data = exogenous_data[:1] if single_env else exogenous_data
+        fname_temp = f"cache/res_real_tf{{tf_index}}_{classifier}_reps{replicates}_{on_count}_{off_count}.npy"
         pip_real = OneStepDecodingPipeline(
-            exogenous_data, realised=True, replicates=replicates
+            data,
+            realised=True,
+            replicates=replicates,
+            classifier_name=classifier,
         )
 
         tf_names = ["msn2", "sfp1", "dot6", "maf1"]
-        num_tfs = exogenous_data.shape[1]  # 4
+        num_tfs = 1 if single_tf else data.shape[1]  # 4
         res_real = np.zeros((num_tfs, on_count, off_count))
 
         def single_grid_search(tf: int):
@@ -28,8 +36,10 @@ class GridSearch:
                 res_real[tf] = np.load(fname)
                 print(f"Used cached TF{tf} data")
                 return
-            for i, k_on in enumerate(np.logspace(-2, 2, num=on_count)):
-                for j, k_off in enumerate(np.logspace(-2, 2, num=off_count)):
+            for i, k_on in enumerate(np.logspace(low_bound, up_bound, num=on_count)):
+                for j, k_off in enumerate(
+                    np.logspace(low_bound, up_bound, num=off_count)
+                ):
                     model = PromoterModel(
                         rate_fn_matrix=[
                             [None, RF.Linear(k_on, tf)],
@@ -62,7 +72,7 @@ class GridSearch:
             im = ax.imshow(
                 res[::-1],  # reverse to move index 0 to bottom
                 cmap="rainbow",
-                extent=(-2, 2, -2, 2),
+                extent=(low_bound, up_bound, low_bound, up_bound),
                 aspect="equal",
                 interpolation="none",
                 vmin=0,
@@ -72,3 +82,4 @@ class GridSearch:
         fig.colorbar(im, ax=axes, location="bottom")
 
         plt.savefig(f"cache/grid_tfs_{on_count}_{off_count}", dpi=100)
+        print(f"Cached data to {fname_temp.format(tf_index='x')}")
