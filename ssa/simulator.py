@@ -28,6 +28,7 @@ class StochasticSimulator(ABC):
         model: PromoterModel = None,
         average: bool = True,
         batch_num: int = 0,
+        show_inactive: bool = True,
     ) -> None:
         import matplotlib.cm as cm
         import matplotlib.pyplot as plt
@@ -66,6 +67,8 @@ class StochasticSimulator(ABC):
 
         for (env_class, ax) in enumerate(axes):
             for state in range(num_states):
+                if not show_inactive and model is not None and not model.active_states[state]:
+                    continue
                 ax.plot(
                     x,
                     np.average(trajectory[:, env_class, :, state], axis=1)
