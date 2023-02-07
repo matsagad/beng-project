@@ -121,7 +121,7 @@ class DecodingEstimator(MIEstimator):
         overtime: bool = True,
         n_bootstraps: int = 25,
         c_interval: int = [0.25, 0.75],
-        verbose: bool = True,
+        verbose: bool = False,
     ) -> float:
         """
         The MI estimation process is adapted from the method of Granados, Pietsch, et al,
