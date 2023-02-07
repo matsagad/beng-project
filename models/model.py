@@ -1,7 +1,7 @@
 from typing import List
 from models.rates.function import RateFunction
 from nptyping import NDArray, Shape, Float, Int
-from scipy.linalg import expm
+from scipy.linalg import expm, norm
 import numpy as np
 
 
@@ -81,7 +81,9 @@ class PromoterModel:
     def get_matrix_exp(
         self, exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float], tau: float
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
-        return expm(tau * self.get_generator(exogenous_data))
+        Q = tau * self.get_generator(exogenous_data)
+        scale = 1 << max(0, int((np.log2(norm(Q)))))
+        return np.linalg.matrix_power(expm(Q / scale), scale)
 
     def visualise(
         self,
