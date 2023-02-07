@@ -207,7 +207,7 @@ class Examples:
                 # Estimate MI
                 origin = OneStepDecodingPipeline.FIXED_ORIGIN
                 interval = OneStepDecodingPipeline.FIXED_INTERVAL
-                est = DecodingEstimator(origin, interval)
+                est = DecodingEstimator(origin, interval, "decision_tree")
 
                 print("Estimating MI...")
                 start = time.time()
@@ -219,17 +219,17 @@ class Examples:
         def grid_search():
             data = import_data()
             gs = GridSearch()
-            gs.optimise(data)
+            gs.optimise_simple(data)
 
 
 def main():
     # Examples.Benchmarking.trajectory()
-    Examples.Benchmarking.mi_estimation()
+    # Examples.Benchmarking.mi_estimation()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.UsingThePipeline.pipeline_example()
-    # Examples.Optimisation.grid_search()
+    Examples.Optimisation.grid_search()
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ class GridSearch:
         num_tfs = 1 if single_tf else data.shape[1]  # 4
         res_real = np.zeros((num_tfs, on_count, off_count))
 
-        def single_grid_search(tf: int):
+        def simple_grid_search(tf: int):
             fname = fname_temp.format(tf_index=tf)
             print(f"Starting grid search for TF{tf}")
             if os.path.isfile(fname):
@@ -57,7 +57,7 @@ class GridSearch:
         print("0.00%")
 
         with ThreadPool(4) as pool:
-            pool.map(single_grid_search, [i for i in range(num_tfs)])
+            pool.map(simple_grid_search, [i for i in range(num_tfs)])
 
         print(f"{time.time() - start}s elapsed")
 
