@@ -26,7 +26,6 @@ class OneStepSimulator(StochasticSimulator):
     def simulate(
         self, model: PromoterModel
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
-
         # Pre-calculate matrix exponentials for all time points and batches
         # (shift axes to allow ease in enumeration)
         TIME_AXIS = 2
@@ -80,20 +79,21 @@ class OneStepSimulator(StochasticSimulator):
         states = [state]
 
         ## Sample random numbers in batches
-        rand_mats = np.random.uniform(
-            size=(self.num_times, self.num_classes, self.batch_size)
+        rand_tensors = np.random.uniform(
+            size=(self.num_times, self.num_classes, self.batch_size, self.replicates)
         )
 
         STATE_AXIS = 3
-        for (matrix_exp, rand_mat) in zip(matrix_exps, rand_mats):
+
+        for matrix_exp, rand_mats in zip(matrix_exps, rand_tensors):
             prob_dist = np.einsum("ijkl,ijlm->ijkm", state, matrix_exp)
             chosen = []
-            for env_id, env_pair in enumerate(
-                zip(np.cumsum(prob_dist, axis=STATE_AXIS), rand_mat)
+            for env_id, (env_prob_cdf, rand_mat) in enumerate(
+                zip(np.cumsum(prob_dist, axis=STATE_AXIS), rand_mats)
             ):
-                env, rand_vec = env_pair
-                for batch_id, batch_pair in enumerate(zip(env, rand_vec)):
-                    batch, rand_num = batch_pair
+                for batch_id, (batch_prob_cdf, rand_vec) in enumerate(
+                    zip(env_prob_cdf, rand_mat)
+                ):
                     chosen.extend(
                         (
                             env_id,
@@ -101,7 +101,9 @@ class OneStepSimulator(StochasticSimulator):
                             replicate_id,
                             replicate.searchsorted(rand_num),
                         )
-                        for replicate_id, replicate in enumerate(batch)
+                        for replicate_id, (replicate, rand_num) in enumerate(
+                            zip(batch_prob_cdf, rand_vec)
+                        )
                     )
 
             # Update the state
