@@ -188,52 +188,60 @@ class Examples:
                 for _ in range(repeats):
                     start = time.time()
 
-                    sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
+                    sim = OneStepSimulator(
+                        data, tau=2.5, realised=True, replicates=replicates
+                    )
                     trajectories = sim.simulate(model)
 
                     total += time.time() - start
-                
+
                 print(f"{replicates} replicates: {total / repeats}")
 
         def mi_estimation():
             data = import_data()
             model = Examples.models[2]
+            origin = OneStepDecodingPipeline.FIXED_ORIGIN
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+            est = DecodingEstimator(origin, interval, "decision_tree")
 
-            for replicates in [1, 5, 10, 20, 30, 40]:
+            for replicates in [1, 5, 10, 50]:
                 # Simulate
-                sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
+                sim = OneStepSimulator(
+                    data, tau=2.5, realised=True, replicates=replicates
+                )
                 trajectories = sim.simulate(model)
 
                 # Estimate MI
-                origin = OneStepDecodingPipeline.FIXED_ORIGIN
-                interval = OneStepDecodingPipeline.FIXED_INTERVAL
-                est = DecodingEstimator(origin, interval, "random_forest")
-
                 print("Estimating MI...")
                 start = time.time()
                 mi_score = est.estimate(model, trajectories)
                 print(f"{replicates} replicates: {time.time() - start}")
-                print(f"MI: {mi_score}")
-        
-        def max_mi_estimation():
-            tf_index = 0
-            TIME_AXIS = 2
-            raw_data = np.moveaxis(import_data()[:, tf_index], TIME_AXIS, 0)
-            raw_data = raw_data.reshape((*raw_data.shape, 1))
 
-            # Estimate MI
+                print(f"MI: {mi_score}")
+
+        def max_mi_estimation():
             origin = OneStepDecodingPipeline.FIXED_ORIGIN
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval, "svm")
-
             dummy_model = PromoterModel([RF.Constant(1)])
-            data = est._split_classes(dummy_model, raw_data)
+            tfs = ["msn2", "sfp1", "dot6", "maf1"]
 
-            print("Estimating MI...")
-            start = time.time()
-            mi_score = est._estimate(data)
-            print(time.time() - start)
-            print(f"MI: {mi_score}")
+            est = DecodingEstimator(origin, interval, "random_forest")
+            for tf_index, tf in enumerate(tfs):
+                for replicates in [2, 5, 10, 20, 30]:
+                    TIME_AXIS = 2
+                    raw_data = np.moveaxis(import_data()[:, tf_index], TIME_AXIS, 0)
+                    raw_data = raw_data.reshape((*raw_data.shape, 1))
+                    # To test repeated samples are handled
+                    rep_raw_data = np.tile(raw_data, (replicates, 1))
+
+                    # Estimate MI
+                    data = est._split_classes(dummy_model, raw_data)
+
+                    start = time.time()
+                    mi_score = est._estimate(data)
+                    print(time.time() - start)
+
+                    print(f"{tf} {replicates} MI: {mi_score}")
 
     class Optimisation:
         def grid_search():
