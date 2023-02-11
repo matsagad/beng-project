@@ -85,7 +85,7 @@ class DecodingEstimator(MIEstimator):
         self,
         model: PromoterModel,
         trajectory: NDArray[Shape["Any, Any, Any, Any"], Float],
-    ) -> float:
+    ) -> NDArray[Shape["Any, Any, Any"], Float]:
         CLASS_AXIS = 1
         trajectory = np.moveaxis(trajectory, CLASS_AXIS, 0)
 
@@ -136,9 +136,7 @@ class DecodingEstimator(MIEstimator):
         fst_split = data_split[0]
         snd_split = data_split[2] / (data_split[1] + data_split[2])
 
-        _X, X_val, _y, y_val = train_test_split(
-            Xs, ys, test_size=fst_split
-        )
+        _X, X_val, _y, y_val = train_test_split(Xs, ys, test_size=fst_split)
 
         # Tune pipeline hyperparameters
         nPCArange = range(1, ts_duration + 1)
