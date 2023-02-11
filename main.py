@@ -57,7 +57,7 @@ def import_data(fname="cache/data_all.npy", save=True):
 
 class Examples:
     tf_index = 0
-    a, b, c = 1.0e-2, 1.0e-2, 1.0e-2
+    a, b, c = 1.0e-0, 1.0e-0, 1.0e-2
     models = {
         2: PromoterModel(
             rate_fn_matrix=[[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
@@ -199,7 +199,7 @@ class Examples:
             data = import_data()
             model = Examples.models[2]
 
-            for replicates in [1, 1, 5, 10, 50]:
+            for replicates in [1, 5, 10, 20, 30, 40]:
                 # Simulate
                 sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
                 trajectories = sim.simulate(model)
@@ -207,13 +207,33 @@ class Examples:
                 # Estimate MI
                 origin = OneStepDecodingPipeline.FIXED_ORIGIN
                 interval = OneStepDecodingPipeline.FIXED_INTERVAL
-                est = DecodingEstimator(origin, interval, "decision_tree")
+                est = DecodingEstimator(origin, interval, "random_forest")
 
                 print("Estimating MI...")
                 start = time.time()
                 mi_score = est.estimate(model, trajectories)
                 print(f"{replicates} replicates: {time.time() - start}")
                 print(f"MI: {mi_score}")
+        
+        def max_mi_estimation():
+            tf_index = 0
+            TIME_AXIS = 2
+            raw_data = np.moveaxis(import_data()[:, tf_index], TIME_AXIS, 0)
+            raw_data = raw_data.reshape((*raw_data.shape, 1))
+
+            # Estimate MI
+            origin = OneStepDecodingPipeline.FIXED_ORIGIN
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+            est = DecodingEstimator(origin, interval, "svm")
+
+            dummy_model = PromoterModel([RF.Constant(1)])
+            data = est._split_classes(dummy_model, raw_data)
+
+            print("Estimating MI...")
+            start = time.time()
+            mi_score = est._estimate(data)
+            print(time.time() - start)
+            print(f"MI: {mi_score}")
 
     class Optimisation:
         def grid_search():
@@ -224,12 +244,13 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    # Examples.Benchmarking.mi_estimation()
+    Examples.Benchmarking.mi_estimation()
+    # Examples.Benchmarking.max_mi_estimation()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.UsingThePipeline.pipeline_example()
-    Examples.Optimisation.grid_search()
+    # Examples.Optimisation.grid_search()
 
 
 if __name__ == "__main__":
