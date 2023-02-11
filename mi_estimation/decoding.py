@@ -50,7 +50,7 @@ class DecodingEstimator(MIEstimator):
         "naive_bayes": {
             "classifier": GaussianNB(),
             "params": {
-                "classifier__var_smoothing": np.logspace(-11, 0, num=100),
+                "var_smoothing": np.logspace(-11, 0, num=100),
             },
         },
     }
@@ -89,7 +89,7 @@ class DecodingEstimator(MIEstimator):
         trajectory = np.moveaxis(trajectory, CLASS_AXIS, 0)
 
         active_states = model.active_states
-        rich_state = None
+        rich_states = []
         states = []
 
         for env_class in trajectory:
