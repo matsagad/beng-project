@@ -10,7 +10,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix
 from sklearn.experimental import enable_halving_search_cv
-from sklearn.model_selection import HalvingGridSearchCV
+from sklearn.model_selection import HalvingGridSearchCV, train_test_split
 from typing import Any, Dict
 import numpy as np
 
@@ -44,7 +44,7 @@ class DecodingEstimator(MIEstimator):
                 "max_depth": [16, 64, 128],
                 "min_samples_leaf": [1, 2, 4],
                 "min_samples_split": [2, 4, 8],
-                "n_estimators": [10],
+                "n_estimators": [20],
             },
         },
         "naive_bayes": {
@@ -54,6 +54,7 @@ class DecodingEstimator(MIEstimator):
             },
         },
     }
+    RANDOM_STATE = 1
 
     def __init__(
         self,
@@ -98,10 +99,7 @@ class DecodingEstimator(MIEstimator):
                 env_class[self.origin - self.interval : self.origin, :, active_states],
                 axis=2,
             ).T
-            if rich_state is None:
-                rich_state = rich_trajectory
-            else:
-                rich_state += rich_trajectory
+            rich_states.extend(rich_trajectory)
 
             stress_trajectory = np.sum(
                 env_class[self.origin : self.origin + self.interval, :, active_states],
@@ -109,101 +107,82 @@ class DecodingEstimator(MIEstimator):
             ).T
             states.append(stress_trajectory)
 
-        avg_rich_state = rich_state / len(trajectory)
-        return [[avg_rich_state] + states]
+        rich_states = np.array(rich_states)
+        np.random.shuffle(rich_states)
+        return np.array([rich_states[: len(states[0])]] + states)
 
     def _flatten(self, X):
         return X.reshape((X.shape[0], -1))
 
     def _estimate(
         self,
-        data: int,
-        overtime: bool = True,
+        data: NDArray[Shape["Any, Any, Any"], Float],
         n_bootstraps: int = 25,
         c_interval: int = [0.25, 0.75],
-        verbose: bool = False,
+        verbose: bool = True,
     ) -> float:
         """
         The MI estimation process is adapted from the method of Granados, Pietsch, et al,
-        Proc Nat Acad Sci USA 115 (2008) 6088. It has been modified to allow different
-        classifiers to be used.
+        Proc Nat Acad Sci USA 115 (2008) 6088. It has been modified to suit the setting of
+        the study and allow different classifiers to be used.
         """
-        for i in range(len(data)):
-            for j in range(len(data[i])):
-                data[i][j] = self._flatten(data[i][j])
+        # Set-up data
+        num_classes, num_samples, ts_duration = data.shape
+        Xs, ys = np.vstack(data), np.repeat(np.arange(num_classes), num_samples)
 
-        Xos = [0] * len(data)
-        ys = [0] * len(data)
-        n_classes = len(data[0])
+        ## Split data into validation/training+testing ~ 20/60+20 split
+        data_split = (0.20, 0.50, 0.30)
 
-        for i in range(len(data)):
-            Xos[i] = np.vstack([timeseries for timeseries in data[i]])
-            ys[i] = np.hstack(
-                [
-                    j * np.ones(timeseries.shape[0])
-                    for j, timeseries in enumerate(data[i])
-                ]
-            )
+        fst_split = data_split[0]
+        snd_split = data_split[2] / (data_split[1] + data_split[2])
 
-        durations = np.arange(1, Xos[0].shape[1] + 1) if overtime else [Xos[0].shape[1]]
-        duration = durations[-1]
-        grid_pipelines = [0] * len(Xos)
+        _X, X_val, _y, y_val = train_test_split(
+            Xs, ys, test_size=fst_split
+        )
 
-        for k in range(len(Xos)):
-            if verbose:
-                print("duration of time series is", duration)
-            X = Xos[k][:, :duration]
+        # Tune pipeline hyperparameters
+        nPCArange = range(1, ts_duration + 1)
 
-            # Hyperparameter space
-            nPCArange = range(1, X.shape[1] + 1) if X.shape[1] < 5 else [3, 4, 5]
+        _prefix = "classifier__"
+        params = [
+            {"project__n_components": nPCArange},
+            {_prefix + prop: value for (prop, value) in self.classifier_params.items()},
+        ]
 
-            _prefix = "classifier__"
-            params = [
-                {"project__n_components": nPCArange},
-                {
-                    _prefix + prop: value
-                    for (prop, value) in self.classifier_params.items()
-                },
+        ## The pipeline
+        pipe = Pipeline(
+            [
+                ("rescale", StandardScaler()),
+                ("project", PCA()),
+                ("classifier", self.classifier),
             ]
+        )
 
-            # Pipeline
-            pipe = Pipeline(
-                [
-                    ("rescale", StandardScaler()),
-                    ("project", PCA()),
-                    ("classifier", self.classifier),
-                ]
-            )
-
-            # Tune pipeline hyperparameters
-            grid_pipelines[k] = HalvingGridSearchCV(pipe, params, n_jobs=-1, cv=5)
-            grid_pipelines[k].fit(X, ys[k])
-            if verbose:
-                print(grid_pipelines[k].best_estimator_)
-            pipe.set_params(**grid_pipelines[k].best_params_)
+        ## Grid search
+        grid_pipeline = HalvingGridSearchCV(pipe, params, n_jobs=-1, cv=5)
+        grid_pipeline.fit(X_val, y_val)
+        if verbose:
+            print(grid_pipeline.best_estimator_)
+        pipe.set_params(**grid_pipeline.best_params_)
 
         # Find mutual information for each bootstrapped dataset
         mi = np.empty(n_bootstraps)
         for i in range(n_bootstraps):
-            p = np.random.RandomState().permutation(len(ys[0]))
-            test_size = np.round(0.3 * len(ys[0])).astype("int")
-            y_pred = np.zeros((test_size, n_classes))
+            X_train, X_test, y_train, y_test = train_test_split(
+                _X,
+                _y,
+                test_size=snd_split,
+            )
+            test_size = len(y_test)
+            y_pred = np.zeros((test_size, num_classes))
 
-            for k in range(len(ys)):
-                X, y = Xos[k][p], ys[k][p]
-                test_size = np.round(0.3 * len(y)).astype("int")
-                X_train, y_train = X[test_size:], y[test_size:]
-                X_test, y_test = X[:test_size], y[:test_size]
-
-                # Run classifier using optimal parameters
-                pipe.fit(X_train, y_train)
-                y_preds = pipe.predict_proba(X_test)
-                y_pred += y_preds
-
+            # Run classifier using optimal parameters
+            pipe.fit(X_train, y_train)
+            y_pred += pipe.predict_proba(X_test)
             y_predict = np.argmax(y_pred, axis=1)
 
             # Estimate mutual information
-            p_y = 1 / n_classes
+            p_y = 1 / num_classes
             p_yhat_given_y = confusion_matrix(y_test, y_predict, normalize="true")
 
             p_yhat = np.sum(p_y * p_yhat_given_y, 0)
