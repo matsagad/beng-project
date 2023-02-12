@@ -29,6 +29,7 @@ class StochasticSimulator(ABC):
         average: bool = True,
         batch_num: int = 0,
         show_inactive: bool = True,
+        fname: str = None,
     ) -> None:
         import matplotlib.cm as cm
         import matplotlib.pyplot as plt
@@ -90,3 +91,6 @@ class StochasticSimulator(ABC):
             )
 
         plt.show()
+        
+        if fname:
+            plt.savefig(fname)
