@@ -41,7 +41,7 @@ class StochasticSimulator(ABC):
         num_times, num_classes, batch_size, num_states = trajectory.shape
         x = np.arange(num_times)
 
-        fig, axes = plt.subplots(1, num_classes, sharey=True)
+        fig, axes = plt.subplots(1, num_classes, sharey=True, figsize=(20, 4))
 
         if num_classes == 1:
             axes = [axes]
