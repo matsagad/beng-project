@@ -126,8 +126,11 @@ class DecodingEstimator(MIEstimator):
 
         return np.array([rich_samples] + states)
 
-    def _flatten(self, X):
-        return X.reshape((X.shape[0], -1))
+    def _flip_random(
+        self, Xs: NDArray[Shape["Any, Any"], Float], prob: float = 0.1
+    ) -> NDArray[Shape["Any, Any"], Float]:
+        bit_mask = np.random.binomial(size=(Xs.shape), n=1, p=prob)
+        return np.array(Xs != bit_mask, dtype=float)
 
     def _estimate(
         self,
@@ -135,6 +138,7 @@ class DecodingEstimator(MIEstimator):
         n_bootstraps: int = 25,
         c_interval: int = [0.25, 0.75],
         verbose: bool = False,
+        add_noise: bool = True,
     ) -> float:
         """
         The MI estimation process is adapted from the method of Granados, Pietsch, et al,
@@ -145,13 +149,18 @@ class DecodingEstimator(MIEstimator):
         num_classes, num_samples, ts_duration = data.shape
         Xs, ys = np.vstack(data), np.repeat(np.arange(num_classes), num_samples)
 
-        ## Split data into validation/training+testing ~ 20/60+20 split
-        data_split = (0.20, 0.60, 0.20)
+        if add_noise:
+            Xs = self._flip_random(Xs)
+
+        ## Split data into validation/training/testing ~ 20/60/20 split
+        data_split = (0.20, 0.65, 0.15)
 
         fst_split = data_split[0]
         snd_split = data_split[2] / (data_split[1] + data_split[2])
 
-        _X, X_val, _y, y_val = train_test_split(Xs, ys, test_size=fst_split)
+        _X, X_val, _y, y_val = train_test_split(
+            Xs, ys, test_size=fst_split, stratify=ys
+        )
 
         # Tune pipeline hyperparameters
         nPCArange = range(1, ts_duration + 1)
@@ -173,10 +182,7 @@ class DecodingEstimator(MIEstimator):
 
         ## Grid search
         grid_pipeline = HalvingGridSearchCV(
-            pipe,
-            params,
-            n_jobs=-1,
-            cv=5,
+            pipe, params, n_jobs=1, cv=5, resource="n_samples", error_score="raise"
         )
         grid_pipeline.fit(X_val, y_val)
         if verbose:
@@ -187,9 +193,7 @@ class DecodingEstimator(MIEstimator):
         mi = np.empty(n_bootstraps)
         for i in range(n_bootstraps):
             X_train, X_test, y_train, y_test = train_test_split(
-                _X,
-                _y,
-                test_size=snd_split,
+                _X, _y, test_size=snd_split, stratify=_y
             )
             test_size = len(y_test)
             y_pred = np.zeros((test_size, num_classes))
