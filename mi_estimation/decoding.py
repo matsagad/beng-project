@@ -19,7 +19,7 @@ class DecodingEstimator(MIEstimator):
     classifiers = ["svm", "decision_tree", "random_forest", "naive_bayes"]
     default_classifier_cfgs = {
         "svm": {
-            "classifier": svm.SVC(probability=True),
+            "classifier": svm.SVC(),
             "params": {
                 "kernel": ["rbf"],
                 "C": np.logspace(-3, 3, 12),
@@ -127,7 +127,7 @@ class DecodingEstimator(MIEstimator):
         return np.array([rich_samples] + states)
 
     def _flip_random(
-        self, Xs: NDArray[Shape["Any, Any"], Float], prob: float = 0.1
+        self, Xs: NDArray[Shape["Any, Any"], Float], prob: float = 0.125
     ) -> NDArray[Shape["Any, Any"], Float]:
         bit_mask = np.random.binomial(size=(Xs.shape), n=1, p=prob)
         return np.array(Xs != bit_mask, dtype=float)
@@ -161,13 +161,12 @@ class DecodingEstimator(MIEstimator):
         _X, X_val, _y, y_val = train_test_split(
             Xs, ys, test_size=fst_split, stratify=ys
         )
-
         # Tune pipeline hyperparameters
-        nPCArange = range(1, ts_duration + 1)
-
+        num_samples = len(y_val)
+        n_PCA_range = range(1, 1 + min(num_samples, ts_duration))
         _prefix = "classifier__"
         params = [
-            {"project__n_components": nPCArange},
+            {"project__n_components": n_PCA_range},
             {_prefix + prop: value for (prop, value) in self.classifier_params.items()},
         ]
 
@@ -182,7 +181,14 @@ class DecodingEstimator(MIEstimator):
 
         ## Grid search
         grid_pipeline = HalvingGridSearchCV(
-            pipe, params, n_jobs=1, cv=5, resource="n_samples", error_score="raise"
+            pipe,
+            params,
+            n_jobs=1,
+            cv=5,
+            resource="n_samples",
+            min_resources=num_samples // 4,
+            factor=2,
+            error_score="raise",
         )
         grid_pipeline.fit(X_val, y_val)
         if verbose:
@@ -195,24 +201,22 @@ class DecodingEstimator(MIEstimator):
             X_train, X_test, y_train, y_test = train_test_split(
                 _X, _y, test_size=snd_split, stratify=_y
             )
-            test_size = len(y_test)
-            y_pred = np.zeros((test_size, num_classes))
-
-            # Run classifier using optimal parameters
-            pipe.fit(X_train, y_train)
-            y_pred += pipe.predict_proba(X_test)
-            y_predict = np.argmax(y_pred, axis=1)
 
             # Estimate mutual information
+            pipe.fit(X_train, y_train)
+            y_pred = pipe.predict(X_test)
+
             p_y = 1 / num_classes
-            p_yhat_given_y = confusion_matrix(y_test, y_predict, normalize="true")
+            p_yhat_given_y = confusion_matrix(y_test, y_pred, normalize="true")
 
             p_yhat = np.sum(p_y * p_yhat_given_y, 0)
             h_yhat = -np.sum(p_yhat[p_yhat > 0] * np.log2(p_yhat[p_yhat > 0]))
+
             log2_p_yhat_given_y = np.ma.log2(p_yhat_given_y).filled(0)
             h_yhat_given_y = -np.sum(
                 p_y * np.sum(p_yhat_given_y * log2_p_yhat_given_y, 1)
             )
+
             mi[i] = h_yhat - h_yhat_given_y
 
         # Summary statistics - median and confidence intervals
