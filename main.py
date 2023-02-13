@@ -9,6 +9,10 @@ from utils.data_processing import scaleTS
 import numpy as np
 import time
 
+def _normalise(data):
+    min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
+    max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
+    return (data - min_trace) / (max_trace - min_trace)
 
 def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
     try:
@@ -29,7 +33,7 @@ def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
         return full_data
 
 
-def import_data(fname="cache/data_all.npy", save=True):
+def import_data(fname="cache/data_all.npy", save=True, normalise=True):
     try:
         return np.load(fname)
     except:
@@ -52,12 +56,16 @@ def import_data(fname="cache/data_all.npy", save=True):
 
         if save:
             np.save(fname, full_data)
-        return full_data
+
+        if not normalise:
+            return full_data
+
+        return _normalise(full_data)
 
 
 class Examples:
     tf_index = 0
-    a, b, c = 1.0e-0, 1.0e-0, 1.0e-2
+    a, b, c = 1.0e0, 1.0e0, 1.0e0
     models = {
         2: PromoterModel(
             rate_fn_matrix=[[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
@@ -163,11 +171,58 @@ class Examples:
                 model=model,
             )
 
-            print("Probabilistic (initial: [0.5, 0.5])")
-            OneStepSimulator.visualise_trajectory(
-                OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
-                model=model,
-            )
+            # print("Probabilistic (initial: [0.5, 0.5])")
+            # OneStepSimulator.visualise_trajectory(
+            #     OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
+            #     model=model,
+            # )
+
+        def visualise_activity():
+            data = import_data()
+            # print(data[0, 0, 0])
+            print(data.shape)
+            min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
+            max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
+            data = (data - min_trace) / (max_trace - min_trace)
+            # print(data[0, 0, 0])
+
+            model = Examples.models[2]
+            replicates = 10
+            origin = OneStepDecodingPipeline.FIXED_ORIGIN
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+            est = DecodingEstimator(origin, interval, "naive_bayes")
+
+            # Raw Nuclear Translocation Trajectory
+            TIME_AXIS = 2
+            raw_data = np.moveaxis(data[:, 0], TIME_AXIS, 0)
+            raw_data = raw_data.reshape((*raw_data.shape, 1))
+            split_raw = est._split_classes(PromoterModel([[RF.Constant(1)]]), raw_data)
+
+            # Simulated Trajectory
+            sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
+            trajectories = sim.simulate(model)
+            split_sim = est._split_classes(model, trajectories)
+
+            split = split_sim
+
+            import matplotlib.pyplot as plt
+
+            fig, axes = plt.subplots(1, len(split), sharey=True)
+
+            for _, pair in enumerate(zip(axes, split)):
+                ax, res = pair
+                im = ax.imshow(
+                    res,  # reverse to move index 0 to bottom
+                    cmap="rainbow",
+                    aspect="auto",
+                    interpolation="none",
+                    vmin=0,
+                    vmax=1,
+                )
+
+            fig.colorbar(im, ax=axes, location="bottom")
+
+            plt.savefig(f"cache/updated/binary_vis.png", dpi=100)
 
     class Benchmarking:
         def matrix_exponentials():
@@ -238,7 +293,7 @@ class Examples:
                     data = est._split_classes(dummy_model, raw_data)
 
                     start = time.time()
-                    mi_score = est._estimate(data)
+                    mi_score = est._estimate(data, add_noise=False)
                     print(time.time() - start)
 
                     print(f"{tf} {replicates} MI: {mi_score}")
@@ -252,11 +307,12 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    Examples.Benchmarking.mi_estimation()
+    # Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
+    Examples.PlottingVisuals.visualise_activity()
     # Examples.UsingThePipeline.pipeline_example()
     # Examples.Optimisation.grid_search()
 
