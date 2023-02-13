@@ -127,7 +127,7 @@ class DecodingEstimator(MIEstimator):
         return np.array([rich_samples] + states)
 
     def _flip_random(
-        self, Xs: NDArray[Shape["Any, Any"], Float], prob: float = 0.125
+        self, Xs: NDArray[Shape["Any, Any"], Float], prob: float = 0.05
     ) -> NDArray[Shape["Any, Any"], Float]:
         bit_mask = np.random.binomial(size=(Xs.shape), n=1, p=prob)
         return np.array(Xs != bit_mask, dtype=float)
@@ -161,6 +161,7 @@ class DecodingEstimator(MIEstimator):
         _X, X_val, _y, y_val = train_test_split(
             Xs, ys, test_size=fst_split, stratify=ys
         )
+
         # Tune pipeline hyperparameters
         num_samples = len(y_val)
         n_PCA_range = range(1, 1 + min(num_samples, ts_duration))
@@ -183,11 +184,11 @@ class DecodingEstimator(MIEstimator):
         grid_pipeline = HalvingGridSearchCV(
             pipe,
             params,
-            n_jobs=1,
+            n_jobs=2,
             cv=5,
             resource="n_samples",
-            min_resources=num_samples // 4,
-            factor=2,
+            # min_resources=num_samples // 4,
+            # factor=2,
             error_score="raise",
         )
         grid_pipeline.fit(X_val, y_val)
@@ -212,9 +213,9 @@ class DecodingEstimator(MIEstimator):
             p_yhat = np.sum(p_y * p_yhat_given_y, 0)
             h_yhat = -np.sum(p_yhat[p_yhat > 0] * np.log2(p_yhat[p_yhat > 0]))
 
-            log2_p_yhat_given_y = np.ma.log2(p_yhat_given_y).filled(0)
-            h_yhat_given_y = -np.sum(
-                p_y * np.sum(p_yhat_given_y * log2_p_yhat_given_y, 1)
+            h_yhat_given_y = -p_y * np.sum(
+                p_yhat_given_y[p_yhat_given_y > 0]
+                * np.log2(p_yhat_given_y[p_yhat_given_y > 0])
             )
 
             mi[i] = h_yhat - h_yhat_given_y
