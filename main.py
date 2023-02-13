@@ -35,7 +35,7 @@ def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
 
 def import_data(fname="cache/data_all.npy", save=True, normalise=True):
     try:
-        return np.load(fname)
+        full_data = np.load(fname)
     except:
         full_data = []
         for tf in ("msn2", "sfp1", "dot6", "maf1", "mig1", "hog1", "yap1"):
@@ -57,10 +57,10 @@ def import_data(fname="cache/data_all.npy", save=True, normalise=True):
         if save:
             np.save(fname, full_data)
 
-        if not normalise:
-            return full_data
+    if not normalise:
+        return full_data
 
-        return _normalise(full_data)
+    return _normalise(full_data)
 
 
 class Examples:
@@ -171,20 +171,14 @@ class Examples:
                 model=model,
             )
 
-            # print("Probabilistic (initial: [0.5, 0.5])")
-            # OneStepSimulator.visualise_trajectory(
-            #     OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
-            #     model=model,
-            # )
+            print("Probabilistic (initial: [0.5, 0.5])")
+            OneStepSimulator.visualise_trajectory(
+                OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
+                model=model,
+            )
 
         def visualise_activity():
             data = import_data()
-            # print(data[0, 0, 0])
-            print(data.shape)
-            min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
-            max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
-            data = (data - min_trace) / (max_trace - min_trace)
-            # print(data[0, 0, 0])
 
             model = Examples.models[2]
             replicates = 10
@@ -253,11 +247,11 @@ class Examples:
                 print(f"{replicates} replicates: {total / repeats}")
 
         def mi_estimation():
-            data = import_data()
+            data = import_data()[:1]
             model = Examples.models[2]
             origin = OneStepDecodingPipeline.FIXED_ORIGIN
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval, "decision_tree")
+            est = DecodingEstimator(origin, interval, "naive_bayes")
 
             for replicates in [1, 5, 10, 50]:
                 # Simulate
@@ -307,12 +301,12 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    # Examples.Benchmarking.mi_estimation()
+    Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
-    Examples.PlottingVisuals.visualise_activity()
+    # Examples.PlottingVisuals.visualise_activity()
     # Examples.UsingThePipeline.pipeline_example()
     # Examples.Optimisation.grid_search()
 
