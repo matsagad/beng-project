@@ -1,3 +1,5 @@
+import json
+from data.process import get_tf_data
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
 from optimisation.grid_search import GridSearch
@@ -9,10 +11,12 @@ from utils.data_processing import scaleTS
 import numpy as np
 import time
 
+
 def _normalise(data):
     min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
     max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
     return (data - min_trace) / (max_trace - min_trace)
+
 
 def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
     try:
@@ -298,10 +302,32 @@ class Examples:
             gs = GridSearch()
             gs.optimise_simple(data)
 
+    class Data:
+        def find_labels():
+            fpath = "data/"
+            fnames = ["fig2_stress_type_expts.json", "figS1_nuclear_marker_expts.json"]
+
+            # DFS on JSON structure
+            for fname in fnames:
+                print(fname)
+                with open(fpath + fname, "r") as f:
+                    data = json.load(f)
+                    stack = [(k, v, "\t") for (k, v) in data.items()]
+
+                    while stack:
+                        label, items, prefix = stack.pop()
+                        print(prefix + label)
+                        if not isinstance(items, dict):
+                            continue
+                        stack.extend((k, v, "\t" + prefix) for (k, v) in items.items())
+
+        
+        def load_data():
+            print(get_tf_data().shape)
 
 def main():
     # Examples.Benchmarking.trajectory()
-    Examples.Benchmarking.mi_estimation()
+    # Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
@@ -309,6 +335,8 @@ def main():
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.UsingThePipeline.pipeline_example()
     # Examples.Optimisation.grid_search()
+    # Examples.Data.find_labels()
+    Examples.Data.load_data()
 
 
 if __name__ == "__main__":
