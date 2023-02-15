@@ -3,7 +3,6 @@ from nptyping import NDArray, Shape, Float
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from utils.data_processing import scaleTSall
 import numpy as np
 import os.path
 import json
@@ -179,34 +178,3 @@ def get_tf_data(
     print("Cached data successfully!")
 
     return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
-
-
-# Previously used data from fig3 stress level expts but now unused.
-def _import_data(fname="cache/data_all.npy", save=True, normalise=True):
-    try:
-        full_data = np.load(fname)
-    except:
-        full_data = []
-        for tf in ("msn2", "sfp1", "dot6", "maf1", "mig1", "hog1", "yap1"):
-            try:
-                ts, _, _ = scaleTSall(tf)
-                full_data.append(ts)
-            except:
-                print(f"{tf} not in ncdata")
-
-        min_count = min(len(stress_test) for ts in full_data for stress_test in ts)
-        full_data = np.moveaxis(
-            np.array(
-                [[stress_test[:min_count] for stress_test in ts] for ts in full_data]
-            ),
-            0,
-            1,
-        )
-
-        if save:
-            np.save(fname, full_data)
-
-    if not normalise:
-        return full_data
-
-    return _normalise(full_data)

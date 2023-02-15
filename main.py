@@ -195,12 +195,12 @@ class Examples:
                 print(f"{replicates} replicates: {total / repeats}")
 
         def mi_estimation():
-            data, origin, time_delta, _ = get_tf_data()[:1]
+            data, origin, time_delta, _ = get_tf_data()
             model = Examples.models[2]
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
 
-            for replicates in [1, 5, 10, 50]:
+            for replicates in [1]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -216,25 +216,24 @@ class Examples:
                 print(f"MI: {mi_score}")
 
         def max_mi_estimation():
-            origin = OneStepDecodingPipeline.FIXED_ORIGIN
+            data, origin, _, tf_names = get_tf_data()
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             dummy_model = PromoterModel([RF.Constant(1)])
-            tfs = ["msn2", "sfp1", "dot6", "maf1"]
 
-            est = DecodingEstimator(origin, interval, "random_forest")
-            for tf_index, tf in enumerate(tfs):
-                for replicates in [2, 5, 10, 20, 30]:
+            est = DecodingEstimator(origin, interval, "naive_bayes")
+            for tf_index, tf in enumerate(tf_names):
+                for replicates in [1]:
                     TIME_AXIS = 2
-                    raw_data = np.moveaxis(get_tf_data()[0][:, tf_index], TIME_AXIS, 0)
+                    raw_data = np.moveaxis(data[:, tf_index], TIME_AXIS, 0)
                     raw_data = raw_data.reshape((*raw_data.shape, 1))
                     # To test repeated samples are handled
                     rep_raw_data = np.tile(raw_data, (replicates, 1))
 
                     # Estimate MI
-                    data = est._split_classes(dummy_model, raw_data)
+                    split_data = est._split_classes(dummy_model, raw_data)
 
                     start = time.time()
-                    mi_score = est._estimate(data, add_noise=False)
+                    mi_score = est._estimate(split_data, add_noise=False)
                     print(time.time() - start)
 
                     print(f"{tf} {replicates} MI: {mi_score}")
