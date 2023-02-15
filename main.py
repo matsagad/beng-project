@@ -1,70 +1,13 @@
-import json
-from data.process import get_tf_data
+from mi_estimation.decoding import DecodingEstimator
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
 from optimisation.grid_search import GridSearch
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from ssa.one_step import OneStepSimulator
-from mi_estimation.decoding import DecodingEstimator
-from utils.data_processing import scaleTSall
-from utils.data_processing import scaleTS
+from utils.process import get_tf_data
+import json
 import numpy as np
 import time
-
-
-def _normalise(data):
-    min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
-    max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
-    return (data - min_trace) / (max_trace - min_trace)
-
-
-def import_gluc_data(fname="cache/gluc_data_all.npy", save=True):
-    try:
-        return np.load(fname)
-    except:
-        full_data = []
-        for tf in ("msn2", "sfp1", "dot6", "maf1", "mig1", "hog1", "yap1"):
-            try:
-                ts, _, _ = scaleTS(tf)
-                full_data.append(ts)
-            except:
-                print(f"{tf} not in ncdata")
-
-        min_count = min(ts.shape[0] for ts in full_data)
-        full_data = np.array([[ts[:min_count] for ts in full_data]])
-        if save:
-            np.save(fname, full_data)
-        return full_data
-
-
-def import_data(fname="cache/data_all.npy", save=True, normalise=True):
-    try:
-        full_data = np.load(fname)
-    except:
-        full_data = []
-        for tf in ("msn2", "sfp1", "dot6", "maf1", "mig1", "hog1", "yap1"):
-            try:
-                ts, _, _ = scaleTSall(tf)
-                full_data.append(ts)
-            except:
-                print(f"{tf} not in ncdata")
-
-        min_count = min(len(stress_test) for ts in full_data for stress_test in ts)
-        full_data = np.moveaxis(
-            np.array(
-                [[stress_test[:min_count] for stress_test in ts] for ts in full_data]
-            ),
-            0,
-            1,
-        )
-
-        if save:
-            np.save(fname, full_data)
-
-    if not normalise:
-        return full_data
-
-    return _normalise(full_data)
 
 
 class Examples:
@@ -104,7 +47,7 @@ class Examples:
         def pipeline_example():
             # Import data
             ## Batched data (~119 replicates)
-            data = import_data()
+            data, origin, time_delta, _ = get_tf_data()
             print(data.shape)  # num envs, num tfs, replicates, time stamps
 
             ## Examples for debugging batching process
@@ -115,7 +58,7 @@ class Examples:
             model = Examples.models[3]
 
             # Simulate and evaluate
-            pipeline = OneStepDecodingPipeline(data)
+            pipeline = OneStepDecodingPipeline(data, origin=origin, tau=time_delta)
             pipeline.evaluate(model, verbose=True)
 
     class PlottingVisuals:
@@ -143,11 +86,11 @@ class Examples:
             model.visualise()
 
         def visualise_trajectory_example():
-            data = import_data()
+            data, _, time_delta, _ = get_tf_data()
             model = Examples.models[4]
 
             # Simulate
-            sim = OneStepSimulator(data, tau=2.5, realised=True)
+            sim = OneStepSimulator(data, tau=time_delta, realised=True)
             trajectories = sim.simulate(model)
             print(trajectories.shape)
 
@@ -164,29 +107,28 @@ class Examples:
             )
 
         def visualise_realised_probabilistic_trajectories():
-            data = import_data()
+            data, _, time_delta, _ = get_tf_data()
             model = Examples.models[2]
 
             print("Realised (initial: [0.5, 0.5])")
             OneStepSimulator.visualise_trajectory(
-                OneStepSimulator(data, tau=2.5, realised=True, replicates=3).simulate(
-                    model
-                ),
+                OneStepSimulator(
+                    data, tau=time_delta, realised=True, replicates=3
+                ).simulate(model),
                 model=model,
             )
 
             print("Probabilistic (initial: [0.5, 0.5])")
             OneStepSimulator.visualise_trajectory(
-                OneStepSimulator(data, tau=2.5, realised=False).simulate(model),
+                OneStepSimulator(data, tau=time_delta, realised=False).simulate(model),
                 model=model,
             )
 
         def visualise_activity():
-            data = import_data()
+            data, origin, time_delta, _ = get_tf_data()
 
             model = Examples.models[2]
             replicates = 10
-            origin = OneStepDecodingPipeline.FIXED_ORIGIN
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
 
@@ -197,7 +139,9 @@ class Examples:
             split_raw = est._split_classes(PromoterModel([[RF.Constant(1)]]), raw_data)
 
             # Simulated Trajectory
-            sim = OneStepSimulator(data, tau=2.5, realised=True, replicates=replicates)
+            sim = OneStepSimulator(
+                data, tau=time_delta, realised=True, replicates=replicates
+            )
             trajectories = sim.simulate(model)
             split_sim = est._split_classes(model, trajectories)
 
@@ -224,7 +168,7 @@ class Examples:
 
     class Benchmarking:
         def matrix_exponentials():
-            data = import_data()
+            data, _, _, _ = get_tf_data()
             model = Examples.models[2]
 
             start = time.time()
@@ -232,7 +176,7 @@ class Examples:
             print(time.time() - start)
 
         def trajectory():
-            data = import_data()
+            data, _, time_delta, _ = get_tf_data()
             model = Examples.models[2]
 
             # Simulate
@@ -242,7 +186,7 @@ class Examples:
                     start = time.time()
 
                     sim = OneStepSimulator(
-                        data, tau=2.5, realised=True, replicates=replicates
+                        data, tau=time_delta, realised=True, replicates=replicates
                     )
                     trajectories = sim.simulate(model)
 
@@ -251,16 +195,15 @@ class Examples:
                 print(f"{replicates} replicates: {total / repeats}")
 
         def mi_estimation():
-            data = import_data()[:1]
+            data, origin, time_delta, _ = get_tf_data()[:1]
             model = Examples.models[2]
-            origin = OneStepDecodingPipeline.FIXED_ORIGIN
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
 
             for replicates in [1, 5, 10, 50]:
                 # Simulate
                 sim = OneStepSimulator(
-                    data, tau=2.5, realised=True, replicates=replicates
+                    data, tau=time_delta, realised=True, replicates=replicates
                 )
                 trajectories = sim.simulate(model)
 
@@ -282,7 +225,7 @@ class Examples:
             for tf_index, tf in enumerate(tfs):
                 for replicates in [2, 5, 10, 20, 30]:
                     TIME_AXIS = 2
-                    raw_data = np.moveaxis(import_data()[:, tf_index], TIME_AXIS, 0)
+                    raw_data = np.moveaxis(get_tf_data()[0][:, tf_index], TIME_AXIS, 0)
                     raw_data = raw_data.reshape((*raw_data.shape, 1))
                     # To test repeated samples are handled
                     rep_raw_data = np.tile(raw_data, (replicates, 1))
@@ -298,9 +241,9 @@ class Examples:
 
     class Optimisation:
         def grid_search():
-            data = import_data()
+            data, _, _, tf_names = get_tf_data()
             gs = GridSearch()
-            gs.optimise_simple(data)
+            gs.optimise_simple(data, tf_names)
 
     class Data:
         def find_labels():
@@ -321,14 +264,18 @@ class Examples:
                             continue
                         stack.extend((k, v, "\t" + prefix) for (k, v) in items.items())
 
-        
         def load_data():
-            print(get_tf_data().shape)
+            ts, origin, time_delta, tf_names = get_tf_data()
+            print(ts.shape)
+            print(origin)
+            print(time_delta)
+            print(tf_names)
+
 
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
-    # Examples.Benchmarking.max_mi_estimation()
+    Examples.Benchmarking.max_mi_estimation()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
@@ -336,7 +283,7 @@ def main():
     # Examples.UsingThePipeline.pipeline_example()
     # Examples.Optimisation.grid_search()
     # Examples.Data.find_labels()
-    Examples.Data.load_data()
+    # Examples.Data.load_data()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
+from typing import List
 from models.rates.function import RateFunction as RF
 from models.model import PromoterModel
+from nptyping import NDArray, Shape, Float
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from concurrent.futures.thread import ThreadPoolExecutor
 import matplotlib.pyplot as plt
@@ -9,7 +11,11 @@ import time
 
 
 class GridSearch:
-    def optimise_simple(self, exogenous_data):
+    def optimise_simple(
+        self,
+        exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
+        tf_names: List[str],
+    ):
         on_count, off_count = 10, 10
         low_bound, up_bound = -2, 2
         replicates = 10
@@ -25,8 +31,7 @@ class GridSearch:
             classifier_name=classifier,
         )
 
-        tf_names = ["msn2", "sfp1", "dot6", "maf1"]
-        num_tfs = 1 if single_tf else data.shape[1]  # 4
+        num_tfs = 1 if single_tf else data.shape[1]  # 6
         res_real = np.zeros((num_tfs, on_count, off_count))
 
         def simple_grid_search(tf: int):
