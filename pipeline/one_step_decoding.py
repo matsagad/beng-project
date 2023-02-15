@@ -6,8 +6,9 @@ from ssa.one_step import OneStepSimulator
 
 
 class OneStepDecodingPipeline(Pipeline):
-    FIXED_TIME_DELTA = 2.5
-    FIXED_ORIGIN = 49
+    # Constants derived from data
+    FIXED_TIME_DELTA = 2.525
+    FIXED_ORIGIN = 47
     FIXED_INTERVAL = 20
 
     def __init__(
