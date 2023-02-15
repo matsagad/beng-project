@@ -3,25 +3,42 @@ from nptyping import NDArray, Shape, Float
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from utils.data_processing import scaleTSall
 import numpy as np
 import os.path
 import json
 
 
+def _normalise(data):
+    """
+    Helper function for normalising multidimensional data.
+    """
+    min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
+    max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
+    return (data - min_trace) / (max_trace - min_trace)
+
+
 def get_tf_data(
     f_data: str = "cache/data_tf.npy",
     f_params: str = "cache/params_tf.json",
-    scaled: bool = True,
+    normalise: bool = True,
     folder: str = "data/",
 ) -> Tuple[NDArray[Shape["Any, Any, Any, Any"], Float], int, int]:
-
+    """
+    Yields data from the stress type experiments.
+    Returns a 4D array with dimensions: # environments, # TFs, batch size, # times.
+    """
     # Load from cache if exists
     if os.path.isfile(f_data) and os.path.isfile(f_params):
         print("Using cached data!")
+
         ts = np.load(f_data)
+        ts = _normalise(ts) if normalise else ts
+
         with open(f_params) as f:
             params = json.load(f)
-        return ts, params["origin"], params["tf_names"]
+
+        return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
 
     # Check if primary data sources exist
     NUCLEAR_MARKER_EXPTS = folder + "figS1_nuclear_marker_expts.json"
@@ -43,6 +60,7 @@ def get_tf_data(
             stress_data = json.load(f_stress)
             min_batch_size = float("inf")
             min_time_interval = float("inf")
+            avg_time_delta = 0
 
             # Consider all TFs with nuclear markers
             for tf in nm_data.keys():
@@ -84,11 +102,17 @@ def get_tf_data(
 
                 for env in sorted(stress_data[tf].keys()):
                     origin = stress_data[tf][env]["general"]["origin"]
-                    times = len(stress_data[tf][env]["general"]["times"][0])
+                    times = stress_data[tf][env]["general"]["times"]
+                    num_times = len(times[0])
 
                     # Find largest delta neighborhood around origin
                     min_time_interval = min(
-                        min_time_interval, origin, times - origin - 1
+                        min_time_interval, origin, num_times - origin - 1
+                    )
+
+                    # Find average time delta
+                    avg_time_delta += np.mean(
+                        np.array(times)[:, 1:] - np.array(times)[:, :-1]
                     )
 
                     # Load and predict data using regressor
@@ -132,6 +156,7 @@ def get_tf_data(
 
     params["tf_names"] = tf_names
     params["origin"] = min_time_interval
+    params["avg_time_delta"] = avg_time_delta / (len(tf_names) * len(tf_ts[0]))
 
     ts = []
     for tf_nuc_ts in tf_ts:
@@ -146,10 +171,42 @@ def get_tf_data(
 
     # Set leading dimension to be environmental identity
     ts = np.moveaxis(np.array(ts), 1, 0)
+    ts = _normalise(ts) if normalise else ts
 
     np.save(f_data, ts)
     with open(f_params, "w") as f:
         json.dump(params, f)
     print("Cached data successfully!")
 
-    return ts, params["origin"], params["tf_names"]
+    return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
+
+
+# Previously used data from fig3 stress level expts but now unused.
+def _import_data(fname="cache/data_all.npy", save=True, normalise=True):
+    try:
+        full_data = np.load(fname)
+    except:
+        full_data = []
+        for tf in ("msn2", "sfp1", "dot6", "maf1", "mig1", "hog1", "yap1"):
+            try:
+                ts, _, _ = scaleTSall(tf)
+                full_data.append(ts)
+            except:
+                print(f"{tf} not in ncdata")
+
+        min_count = min(len(stress_test) for ts in full_data for stress_test in ts)
+        full_data = np.moveaxis(
+            np.array(
+                [[stress_test[:min_count] for stress_test in ts] for ts in full_data]
+            ),
+            0,
+            1,
+        )
+
+        if save:
+            np.save(fname, full_data)
+
+    if not normalise:
+        return full_data
+
+    return _normalise(full_data)
