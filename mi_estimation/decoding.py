@@ -102,7 +102,9 @@ class DecodingEstimator(MIEstimator):
             rich_states.extend(rich_trajectory)
 
             stress_trajectory = np.sum(
-                env_class[self.origin : self.origin + self.interval, :, active_states],
+                env_class[
+                    self.origin + 1 : self.origin + self.interval + 1, :, active_states
+                ],
                 axis=2,
             ).T
             states.append(
