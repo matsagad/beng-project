@@ -1,9 +1,10 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from models.rates.function import RateFunction as RF
 from models.model import PromoterModel
+from multiprocessing import get_context
 from nptyping import NDArray, Shape, Float
 from pipeline.one_step_decoding import OneStepDecodingPipeline
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import os.path
@@ -12,17 +13,10 @@ import time
 
 class GridSearch:
     def _simple_grid_search(tf: int, params: Dict[str, any]) -> Tuple[int, NDArray]:
-        fname_temp = params["template"]
         pip = params["pipeline"]
         on_count, off_count, low_bound, up_bound = params["bounds"]
 
-        fname = fname_temp.format(tf_index=tf)
         print(f"Starting grid search for TF{tf}")
-        if os.path.isfile(fname):
-            res = np.load(fname)
-            print(f"Used cached TF{tf} data")
-            return tf, res
-
         res = np.zeros((on_count, off_count))
 
         for i, k_on in enumerate(np.logspace(low_bound, up_bound, num=on_count)):
@@ -39,8 +33,6 @@ class GridSearch:
                     f"TF{tf}-{'%.2f' % (100 * (i * off_count + j + 1) / (on_count * off_count))}%"
                 )
 
-        np.save(fname_temp.format(tf_index=tf), res[tf])
-        print(f"Cached TF{tf} data")
         return tf, res
 
     def optimise_simple(
@@ -48,7 +40,7 @@ class GridSearch:
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tf_names: List[str],
     ) -> None:
-        on_count, off_count = 10, 10
+        on_count, off_count = 1, 1
         low_bound, up_bound = -2, 2
         replicates = 10
         classifier = "naive_bayes"
@@ -69,23 +61,29 @@ class GridSearch:
         start = time.time()
         print("0.00%")
 
-        with ProcessPoolExecutor(max_workers=num_tfs) as executor:
+        with ProcessPoolExecutor(
+            max_workers=num_tfs, mp_context=get_context("spawn")
+        ) as executor:
             params = {
-                "template": fname_temp,
                 "bounds": (on_count, off_count, low_bound, up_bound),
                 "pipeline": pip,
             }
-
-            futures = [
-                executor.submit(GridSearch._simple_grid_search, i, params)
-                for i in range(num_tfs)
-            ]
+            futures = []
+            for tf in range(num_tfs):
+                fname = fname_temp.format(tf_index=tf)
+                if os.path.isfile(fname):
+                    print(f"Using cached data for TF{tf}")
+                    res[tf] = np.load(fname)
+                    continue
+                futures.append(
+                    executor.submit(GridSearch._simple_grid_search, tf, params)
+                )
 
             for future in as_completed(futures):
                 tf, data = future.result()
+                np.save(fname_temp.format(tf_index=tf), data)
+                print(f"Cached TF{tf} data")
                 res[tf] = data
-
-            executor.shutdown()
 
         print(f"{time.time() - start}s elapsed")
 

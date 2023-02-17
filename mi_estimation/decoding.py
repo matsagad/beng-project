@@ -186,12 +186,12 @@ class DecodingEstimator(MIEstimator):
         grid_pipeline = HalvingGridSearchCV(
             pipe,
             params,
-            n_jobs=2,
+            n_jobs=None,
             cv=5,
             resource="n_samples",
             # min_resources=num_samples // 4,
             # factor=2,
-            error_score="raise",
+            # error_score="raise",
         )
         grid_pipeline.fit(X_val, y_val)
         if verbose:
