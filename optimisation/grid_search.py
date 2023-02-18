@@ -40,14 +40,15 @@ class GridSearch:
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tf_names: List[str],
     ) -> None:
-        on_count, off_count = 1, 1
-        low_bound, up_bound = -2, 2
+        on_count, off_count = 20, 20
+        low_bound, up_bound = -2, 0
         replicates = 10
         classifier = "naive_bayes"
-        single_env, single_tf = False, False
+        single_env = False
+        single_tf = "dot6"
 
         data = exogenous_data[:1] if single_env else exogenous_data
-        fname_temp = f"cache/latestv2/res_real_tf{{tf_index}}_{classifier}_reps{replicates}_{on_count}_{off_count}.npy"
+        fname_temp = f"cache/latestv2/res_real_tf{{tf_index}}_{classifier}_reps{replicates}_{low_bound}-{up_bound}_{on_count}_{off_count}.npy"
         pip = OneStepDecodingPipeline(
             data,
             realised=True,
@@ -56,7 +57,12 @@ class GridSearch:
         )
 
         num_tfs = 1 if single_tf else data.shape[1]  # 5
+        tfs = [tf_names.index(single_tf)] if single_tf else [i for i in range(num_tfs)]
         res = np.zeros((num_tfs, on_count, off_count))
+        params = {
+            "bounds": (on_count, off_count, low_bound, up_bound),
+            "pipeline": pip,
+        }
 
         start = time.time()
         print("0.00%")
@@ -64,16 +70,12 @@ class GridSearch:
         with ProcessPoolExecutor(
             max_workers=num_tfs, mp_context=get_context("spawn")
         ) as executor:
-            params = {
-                "bounds": (on_count, off_count, low_bound, up_bound),
-                "pipeline": pip,
-            }
             futures = []
-            for tf in range(num_tfs):
+            for i, tf in enumerate(tfs):
                 fname = fname_temp.format(tf_index=tf)
                 if os.path.isfile(fname):
                     print(f"Using cached data for TF{tf}")
-                    res[tf] = np.load(fname)
+                    res[tfs.index(tf)] = np.load(fname)
                     continue
                 futures.append(
                     executor.submit(GridSearch._simple_grid_search, tf, params)
@@ -83,7 +85,7 @@ class GridSearch:
                 tf, data = future.result()
                 np.save(fname_temp.format(tf_index=tf), data)
                 print(f"Cached TF{tf} data")
-                res[tf] = data
+                res[tfs.index(tf)] = data
 
         print(f"{time.time() - start}s elapsed")
 
@@ -94,7 +96,7 @@ class GridSearch:
 
         for i, pair in enumerate(zip(axes, res)):
             ax, res = pair
-            ax.title.set_text(tf_names[i])
+            ax.title.set_text(tf_names[tfs[i]])
             im = ax.imshow(
                 res[::-1],  # reverse to move index 0 to bottom
                 cmap="rainbow",
