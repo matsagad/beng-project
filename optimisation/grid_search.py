@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os.path
 import time
-from loky import get_reusable_executor
 
 
 class GridSearch:
@@ -41,13 +40,13 @@ class GridSearch:
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tf_names: List[str],
     ) -> None:
-        on_count, off_count = 2, 2
+        on_count, off_count = 10, 10
         low_bound, up_bound = -2, 0
         replicates = 1
         classifier = "svm"
         single_env = False
-        single_tf = False
-        
+        tfs_to_test = ["dot6", "mig1"]  # tf_names
+
         data = exogenous_data[:1] if single_env else exogenous_data
         fname_temp = f"cache/latestv2/res_real_tf{{tf_index}}_{classifier}_reps{replicates}_{low_bound}-{up_bound}_{on_count}_{off_count}.npy"
         pip = OneStepDecodingPipeline(
@@ -57,9 +56,10 @@ class GridSearch:
             classifier_name=classifier,
         )
 
-        num_tfs = 1 if single_tf else data.shape[1]  # 5
-        tfs = [tf_names.index(single_tf)] if single_tf else [i for i in range(num_tfs)]
+        num_tfs = len(tfs_to_test)
+        tfs = [tf_names.index(tf) for tf in tfs_to_test]
         res = np.zeros((num_tfs, on_count, off_count))
+
         params = {
             "bounds": (on_count, off_count, low_bound, up_bound),
             "pipeline": pip,
@@ -68,7 +68,8 @@ class GridSearch:
         start = time.time()
         print("0.00%")
 
-        if single_tf:
+        if num_tfs == 1:
+            # Don't spawn processes that interfere with sklearn's joblib parallelism
             tf = tfs[0]
             fname = fname_temp.format(tf_index=tf)
             if os.path.isfile(fname):
@@ -97,7 +98,7 @@ class GridSearch:
 
                 for future in as_completed(futures):
                     tf, data = future.result()
-                    # np.save(fname_temp.format(tf_index=tf), data)
+                    np.save(fname_temp.format(tf_index=tf), data)
                     print(f"Cached TF{tf} data")
                     res[tfs.index(tf)] = data
 
