@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os.path
 import time
+from loky import get_reusable_executor
 
 
 class GridSearch:
@@ -40,13 +41,13 @@ class GridSearch:
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tf_names: List[str],
     ) -> None:
-        on_count, off_count = 20, 20
+        on_count, off_count = 2, 2
         low_bound, up_bound = -2, 0
-        replicates = 10
-        classifier = "naive_bayes"
+        replicates = 1
+        classifier = "svm"
         single_env = False
-        single_tf = "dot6"
-
+        single_tf = False
+        
         data = exogenous_data[:1] if single_env else exogenous_data
         fname_temp = f"cache/latestv2/res_real_tf{{tf_index}}_{classifier}_reps{replicates}_{low_bound}-{up_bound}_{on_count}_{off_count}.npy"
         pip = OneStepDecodingPipeline(
@@ -67,25 +68,38 @@ class GridSearch:
         start = time.time()
         print("0.00%")
 
-        with ProcessPoolExecutor(
-            max_workers=num_tfs, mp_context=get_context("spawn")
-        ) as executor:
-            futures = []
-            for i, tf in enumerate(tfs):
-                fname = fname_temp.format(tf_index=tf)
-                if os.path.isfile(fname):
-                    print(f"Using cached data for TF{tf}")
-                    res[tfs.index(tf)] = np.load(fname)
-                    continue
-                futures.append(
-                    executor.submit(GridSearch._simple_grid_search, tf, params)
-                )
-
-            for future in as_completed(futures):
-                tf, data = future.result()
+        if single_tf:
+            tf = tfs[0]
+            fname = fname_temp.format(tf_index=tf)
+            if os.path.isfile(fname):
+                print(f"Using cached data for TF{tf}")
+                res[tfs.index(tf)] = np.load(fname)
+            else:
+                pip.set_parallel()
+                tf, data = GridSearch._simple_grid_search(tfs[0], params)
                 np.save(fname_temp.format(tf_index=tf), data)
                 print(f"Cached TF{tf} data")
                 res[tfs.index(tf)] = data
+        else:
+            with ProcessPoolExecutor(
+                max_workers=num_tfs, mp_context=get_context("spawn")
+            ) as executor:
+                futures = []
+                for i, tf in enumerate(tfs):
+                    fname = fname_temp.format(tf_index=tf)
+                    if os.path.isfile(fname):
+                        print(f"Using cached data for TF{tf}")
+                        res[tfs.index(tf)] = np.load(fname)
+                        continue
+                    futures.append(
+                        executor.submit(GridSearch._simple_grid_search, tf, params)
+                    )
+
+                for future in as_completed(futures):
+                    tf, data = future.result()
+                    # np.save(fname_temp.format(tf_index=tf), data)
+                    print(f"Cached TF{tf} data")
+                    res[tfs.index(tf)] = data
 
         print(f"{time.time() - start}s elapsed")
 

@@ -30,3 +30,6 @@ class OneStepDecodingPipeline(Pipeline):
 
     def evaluate(self, model: PromoterModel, verbose: bool = False) -> float:
         return super().estimateMI(model, verbose)
+
+    def set_parallel(self) -> None:
+        self.estimator.parallel = True

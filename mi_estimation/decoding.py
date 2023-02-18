@@ -1,3 +1,4 @@
+from joblib import parallel_backend
 from models.model import PromoterModel
 from mi_estimation.estimator import MIEstimator
 from nptyping import NDArray, Shape, Float
@@ -78,7 +79,7 @@ class DecodingEstimator(MIEstimator):
         cfg = self.default_classifier_cfgs[classifier_name]
         self.classifier = cfg["classifier"]
         self.classifier_params = cfg["params"]
-        print(classifier_name)
+        self.parallel = False
 
     def _split_classes(
         self,
@@ -186,7 +187,7 @@ class DecodingEstimator(MIEstimator):
         grid_pipeline = HalvingGridSearchCV(
             pipe,
             params,
-            n_jobs=None,
+            n_jobs=(-1 if self.parallel else 1),
             cv=5,
             resource="n_samples",
             # min_resources=num_samples // 4,
