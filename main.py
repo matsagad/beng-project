@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from mi_estimation.decoding import DecodingEstimator
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
@@ -11,7 +12,7 @@ import time
 
 
 class Examples:
-    tf_index = 0
+    tf_index = 2 # dot6
     a, b, c = 1.0e0, 1.0e0, 1.0e0
     models = {
         2: PromoterModel(
@@ -200,7 +201,7 @@ class Examples:
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
 
-            for replicates in [1]:
+            for replicates in [1, 2, 5, 10]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -238,6 +239,43 @@ class Examples:
 
                     print(f"{tf} {replicates} MI: {mi_score}")
 
+        def mi_estimation_table():
+            # (for simple model only)
+            data, origin, time_delta, _ = get_tf_data()
+            model = Examples.models[2]
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+
+            replicates = [1, 2, 5, 10, 20, 50]
+            classifiers = ["svm", "random_forest", "decision_tree", "naive_bayes"]
+            TIMEOUT = 300
+
+            res_times = np.zeros((len(classifiers), len(replicates))) + float("inf")
+            res_mi = np.zeros((len(classifiers), len(replicates))) - 1
+
+            def _benchmark(cls_index: int, rep_index: int) -> None:
+                classifier, replicate = classifiers[cls_index], replicates[rep_index]
+                print(f"{classifier} - {replicate} reps")
+                sim = OneStepSimulator(
+                    data, tau=time_delta, realised=True, replicates=replicate
+                )
+                trajectory = sim.simulate(model)
+                est = DecodingEstimator(origin, interval, classifier)
+                start = time.time()
+                mi_score = est.estimate(model, trajectory)
+                res_times[cls_index, rep_index] = time.time() - start
+                res_mi[cls_index, rep_index] = mi_score
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                for i in range(len(classifiers)):
+                    for j in range(len(replicates)):
+                        try:
+                            executor.submit(_benchmark, i, j).result(TIMEOUT)
+                        except Exception as e:
+                            print(e)
+
+            print(res_times)
+            print(res_mi)
+
     class Optimisation:
         def grid_search():
             data, _, _, tf_names = get_tf_data()
@@ -274,13 +312,14 @@ class Examples:
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
-    Examples.Benchmarking.max_mi_estimation()
+    # Examples.Benchmarking.max_mi_estimation()
+    # Examples.Benchmarking.mi_estimation_table()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.UsingThePipeline.pipeline_example()
-    # Examples.Optimisation.grid_search()
+    Examples.Optimisation.grid_search()
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
 
