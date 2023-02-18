@@ -12,7 +12,8 @@ import time
 
 
 class Examples:
-    tf_index = 2 # dot6
+    CACHE_FOLDER = "cache/latestv2"
+    tf_index = 2  # dot6
     a, b, c = 1.0e0, 1.0e0, 1.0e0
     models = {
         2: PromoterModel(
@@ -165,7 +166,7 @@ class Examples:
 
             fig.colorbar(im, ax=axes, location="bottom")
 
-            plt.savefig(f"cache/updated/binary_vis.png", dpi=100)
+            plt.savefig(f"{Examples.CACHE_FOLDER}/binary_vis.png", dpi=100)
 
     class Benchmarking:
         def matrix_exponentials():
@@ -276,6 +277,45 @@ class Examples:
             print(res_times)
             print(res_mi)
 
+        def mi_vs_interval():
+            data, origin, time_delta, _ = get_tf_data()
+            model = Examples.models[2]
+            reps = 3
+            scores = []
+
+            for interval in range(1, origin):
+                replicates = 20
+                est = DecodingEstimator(origin, interval, "naive_bayes")
+                est.parallel = True
+
+                # Simulate
+                sim = OneStepSimulator(
+                    data, tau=time_delta, realised=True, replicates=replicates
+                )
+                trajectories = sim.simulate(model)
+
+                # Estimate MI
+                print("Estimating MI...")
+                start = time.time()
+
+                mi_score = 0
+                for _ in range(reps):
+                    mi_score += est.estimate(model, trajectories)
+                mi_score = mi_score / reps
+
+                print(f"{interval} interval: {time.time() - start}")
+                print(f"MI: {mi_score}")
+                scores.append(mi_score)
+
+            print(scores)
+
+            import matplotlib.pyplot as plt
+
+            plt.plot([i for i in range(1, origin)], scores)
+            plt.ylabel("MI")
+            plt.xlabel("Length of time interval from origin")
+            plt.savefig(f"{Examples.CACHE_FOLDER}/mi_vs_interval.png", dpi=100)
+
     class Optimisation:
         def grid_search():
             data, _, _, tf_names = get_tf_data()
@@ -312,14 +352,15 @@ class Examples:
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
-    # Examples.Benchmarking.max_mi_estimation()
+    Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
+    # Examples.Benchmarking.mi_vs_interval()
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.UsingThePipeline.pipeline_example()
-    Examples.Optimisation.grid_search()
+    # Examples.Optimisation.grid_search()
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
 
