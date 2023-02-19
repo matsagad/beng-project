@@ -16,17 +16,19 @@ class Examples:
     CACHE_FOLDER = "cache/latestv2"
     tf_index = 2  # dot6
     a, b, c = 1.0e0, 1.0e0, 1.0e0
+    # Parameters found from particle swarm 
+    m, n, p, q = 10 ** (1.98472999), 10 ** (0.80802623), 10 ** (-1.86577579), 10 ** (1.41144266)
     models = {
         2: PromoterModel(
             rate_fn_matrix=[[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
         ).with_active_states([1]),
         3: PromoterModel(
             rate_fn_matrix=[
-                [None, None, RF.Constant(a)],
-                [None, None, RF.Constant(b)],
+                [None, None, RF.Constant(m)],
+                [None, None, RF.Constant(n)],
                 [
-                    RF.Linear(a, tf_index),
-                    RF.Linear(b, tf_index + 1),
+                    RF.Linear(p, tf_index - 1),
+                    RF.Linear(q, tf_index),
                     None,
                 ],
             ]
@@ -129,6 +131,7 @@ class Examples:
 
         def visualise_activity():
             data, origin, time_delta, _ = get_tf_data()
+            data = data[:1]
 
             model = Examples.models[2]
             replicates = 10
@@ -137,7 +140,7 @@ class Examples:
 
             # Raw Nuclear Translocation Trajectory
             TIME_AXIS = 2
-            raw_data = np.moveaxis(data[:, 0], TIME_AXIS, 0)
+            raw_data = np.moveaxis(data[:, 2], TIME_AXIS, 0)
             raw_data = raw_data.reshape((*raw_data.shape, 1))
             split_raw = est._split_classes(PromoterModel([[RF.Constant(1)]]), raw_data)
 
@@ -146,18 +149,27 @@ class Examples:
                 data, tau=time_delta, realised=True, replicates=replicates
             )
             trajectories = sim.simulate(model)
+            print(est.estimate(model, trajectories))
             split_sim = est._split_classes(model, trajectories)
 
-            split = split_sim
+            num_envs = data.shape[0]
 
             import matplotlib.pyplot as plt
 
-            fig, axes = plt.subplots(1, len(split), sharey=True)
+            fig, axes = plt.subplots(2, num_envs + 1, sharey="row", figsize=(5,10))
 
-            for _, pair in enumerate(zip(axes, split)):
-                ax, res = pair
-                im = ax.imshow(
-                    res,  # reverse to move index 0 to bottom
+            for i, pair in enumerate(zip(split_sim, split_raw)):
+                res_sim, res_raw = pair
+                im = axes[0][i].imshow(
+                    res_sim,
+                    cmap="rainbow",
+                    aspect="auto",
+                    interpolation="none",
+                    vmin=0,
+                    vmax=1,
+                )
+                im = axes[1][i].imshow(
+                    res_raw,
                     cmap="rainbow",
                     aspect="auto",
                     interpolation="none",
@@ -167,7 +179,7 @@ class Examples:
 
             fig.colorbar(im, ax=axes, location="bottom")
 
-            plt.savefig(f"{Examples.CACHE_FOLDER}/binary_vis.png", dpi=100)
+            plt.savefig(f"{Examples.CACHE_FOLDER}/binary_vis.png", dpi=200)
 
     class Benchmarking:
         def matrix_exponentials():
@@ -203,7 +215,7 @@ class Examples:
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
 
-            for replicates in [1, 5, 10, 50, 100]:
+            for replicates in [100]:  # [1, 5, 10, 50, 100]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -316,13 +328,43 @@ class Examples:
             plt.ylabel("MI")
             plt.xlabel("Length of time interval from origin")
             plt.savefig(f"{Examples.CACHE_FOLDER}/mi_vs_interval.png", dpi=100)
+        
+        def mi_vs_repeated_intervals():
+            data, origin, time_delta, _ = get_tf_data()
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+
+            # Scale controls number of repeated intervals
+            scale = 2
+
+            origin *= scale
+            time_delta /= scale
+            interval *= scale
+            data = np.repeat(data, scale, axis=3)
+
+            model = Examples.models[2]
+            est = DecodingEstimator(origin, interval, "svm")
+
+            for replicates in [1]:
+                # Simulate
+                sim = OneStepSimulator(
+                    data[:1], tau=time_delta, realised=True, replicates=replicates
+                )
+                trajectories = sim.simulate(model)
+
+                # Estimate MI
+                print("Estimating MI...")
+                start = time.time()
+                mi_score = est.estimate(model, trajectories)
+                print(f"{replicates} replicates: {time.time() - start}")
+
+                print(f"MI: {mi_score}")
 
     class Optimisation:
         def grid_search():
             data, _, _, tf_names = get_tf_data()
             gs = GridSearch()
             gs.optimise_simple(data, tf_names)
-        
+
         def particle_swarm():
             data, _, _, _ = get_tf_data()
             ps = ParticleSwarm()
@@ -357,10 +399,11 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    # Examples.Benchmarking.mi_estimation()
+    Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
+    # Examples.Benchmarking.mi_vs_repeated_intervals()
 
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
@@ -370,7 +413,7 @@ def main():
     # Examples.UsingThePipeline.pipeline_example()
 
     # Examples.Optimisation.grid_search()
-    Examples.Optimisation.particle_swarm()
+    # Examples.Optimisation.particle_swarm()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
