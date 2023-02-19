@@ -1,4 +1,3 @@
-from joblib import parallel_backend
 from models.model import PromoterModel
 from mi_estimation.estimator import MIEstimator
 from nptyping import NDArray, Shape, Float
@@ -7,6 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import SGDClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix
@@ -52,6 +52,14 @@ class DecodingEstimator(MIEstimator):
             "classifier": GaussianNB(),
             "params": {
                 "var_smoothing": np.logspace(-11, 0, num=100),
+            },
+        },
+        "sgd": {
+            "classifier": SGDClassifier(max_iter=1000),
+            "params": {
+                "alpha": [1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3],
+                "loss": ["hinge", "log_loss", "modified_huber"],
+                "penalty": ["l2"],
             },
         },
     }
@@ -156,7 +164,7 @@ class DecodingEstimator(MIEstimator):
             Xs = self._flip_random(Xs)
 
         ## Split data into validation/training/testing ~ 20/60/20 split
-        data_split = (0.20, 0.65, 0.15)
+        data_split = (0.20, 0.60, 0.20)
 
         fst_split = data_split[0]
         snd_split = data_split[2] / (data_split[1] + data_split[2])
@@ -189,10 +197,11 @@ class DecodingEstimator(MIEstimator):
             params,
             n_jobs=(-1 if self.parallel else 1),
             cv=5,
-            resource="n_samples",
+            # resource="n_samples",
             # min_resources=num_samples // 4,
             # factor=2,
             # error_score="raise",
+            # scoring="f1_micro"
         )
         grid_pipeline.fit(X_val, y_val)
         if verbose:
