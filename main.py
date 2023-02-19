@@ -3,6 +3,7 @@ from mi_estimation.decoding import DecodingEstimator
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
 from optimisation.grid_search import GridSearch
+from optimisation.particle_swarm import ParticleSwarm
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from ssa.one_step import OneStepSimulator
 from utils.process import get_tf_data
@@ -202,7 +203,7 @@ class Examples:
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
 
-            for replicates in [1, 2, 5, 10]:
+            for replicates in [1, 5, 10, 50, 100]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -321,6 +322,11 @@ class Examples:
             data, _, _, tf_names = get_tf_data()
             gs = GridSearch()
             gs.optimise_simple(data, tf_names)
+        
+        def particle_swarm():
+            data, _, _, _ = get_tf_data()
+            ps = ParticleSwarm()
+            ps.optimise_simple(data)
 
     class Data:
         def find_labels():
@@ -352,15 +358,20 @@ class Examples:
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
-    Examples.Benchmarking.max_mi_estimation()
+    # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
+
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_activity()
+
     # Examples.UsingThePipeline.pipeline_example()
+
     # Examples.Optimisation.grid_search()
+    Examples.Optimisation.particle_swarm()
+
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
 
