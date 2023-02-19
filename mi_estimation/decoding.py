@@ -163,8 +163,8 @@ class DecodingEstimator(MIEstimator):
         if add_noise:
             Xs = self._flip_random(Xs)
 
-        ## Split data into validation/training/testing ~ 20/60/20 split
-        data_split = (0.20, 0.60, 0.20)
+        ## Split data into validation/training/testing ~ 15/70/15 split
+        data_split = (0.15, 0.70, 0.15)
 
         fst_split = data_split[0]
         snd_split = data_split[2] / (data_split[1] + data_split[2])
