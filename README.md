@@ -28,6 +28,7 @@ The project's structure is given as follows:
 │       └── function.py           # Rate functions taking exogenous input
 ├── optimisation
 │   └── grid_search.py            # Grid search on simple models
+│   └── particle_swarm.py         # Particle swarm on general models
 ├── pipeline
 │   ├── one_step_decoding.py      # One-step + Decoding pipeline
 │   └── pipeline.py               # Pipeline class
