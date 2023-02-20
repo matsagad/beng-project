@@ -15,22 +15,17 @@ class ParticleSwarm:
                 pip.evaluate(
                     PromoterModel(
                         rate_fn_matrix=[
-                            [None, None, RF.Constant(particle[0])],
-                            [None, None, RF.Constant(particle[1])],
-                            [
-                                RF.Linear(particle[2], 1),
-                                RF.Linear(particle[3], 2),
-                                None,
-                            ],
+                            [None, RF.Linear([particle[0]], [2])],
+                            [RF.Constant([particle[1]]), None],
                         ]
-                    ).with_active_states([0, 1])
+                    )
                 )
                 for particle in 10**X
             ]
         )
 
     def optimise_simple(self, data: NDArray):
-        replicates = 5
+        replicates = 10
         classifier = "naive_bayes"
 
         pip = OneStepDecodingPipeline(
@@ -40,8 +35,8 @@ class ParticleSwarm:
             classifier_name=classifier,
         )
 
-        dims = 4
-        low, high = -4, 4  # log-space
+        dims = 2
+        low, high = -2, 2  # log-space
         bounds = (low * np.ones(dims), high * np.ones(dims))
         options = {
             "c1": 0.5,

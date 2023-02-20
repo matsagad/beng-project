@@ -16,32 +16,40 @@ class Examples:
     CACHE_FOLDER = "cache/latestv2"
     tf_index = 2  # dot6
     a, b, c = 1.0e0, 1.0e0, 1.0e0
-    # Parameters found from particle swarm 
-    m, n, p, q = 10 ** (1.98472999), 10 ** (0.80802623), 10 ** (-1.86577579), 10 ** (1.41144266)
+    # Parameters found from particle swarm
+    m, n, p, q = (
+        10 ** (1.98472999),
+        10 ** (0.80802623),
+        10 ** (-1.86577579),
+        10 ** (1.41144266),
+    )
     models = {
         2: PromoterModel(
-            rate_fn_matrix=[[None, RF.Linear(a, tf_index)], [RF.Constant(b), None]]
+            rate_fn_matrix=[
+                [None, RF.Linear([a], [tf_index])],
+                [RF.Constant([b]), None],
+            ]
         ).with_active_states([1]),
         3: PromoterModel(
             rate_fn_matrix=[
-                [None, None, RF.Constant(m)],
-                [None, None, RF.Constant(n)],
+                [None, None, RF.Constant([m])],
+                [None, None, RF.Constant([n])],
                 [
-                    RF.Linear(p, tf_index - 1),
-                    RF.Linear(q, tf_index),
+                    RF.Linear([p], [tf_index - 1]),
+                    RF.Linear([q], [tf_index]),
                     None,
                 ],
             ]
         ).with_active_states([0, 1]),
         4: PromoterModel(
             rate_fn_matrix=[
-                [None, None, None, RF.Constant(a)],
-                [None, None, None, RF.Constant(b)],
-                [None, None, None, RF.Constant(c)],
+                [None, None, None, RF.Constant([a])],
+                [None, None, None, RF.Constant([b])],
+                [None, None, None, RF.Constant([c])],
                 [
-                    RF.Linear(a, tf_index),
-                    RF.Linear(b, tf_index + 1),
-                    RF.Linear(c, tf_index + 2),
+                    RF.Linear([a], [tf_index]),
+                    RF.Linear([b], [tf_index + 1]),
+                    RF.Linear([c], [tf_index + 2]),
                     None,
                 ],
             ]
@@ -75,13 +83,13 @@ class Examples:
             # Changes in matrix will reflect in visualisation!
             model = PromoterModel(
                 rate_fn_matrix=[
-                    [None, None, None, RF.Constant(a)],
-                    [None, None, None, RF.Constant(b)],
-                    [None, None, None, RF.Constant(c)],
+                    [None, None, None, RF.Constant([a])],
+                    [None, None, None, RF.Constant([b])],
+                    [None, None, None, RF.Constant([c])],
                     [
-                        RF.Linear(a, tf_index),
-                        RF.Linear(b, tf_index + 1),
-                        RF.Linear(c, tf_index + 2),
+                        RF.Linear([a], [tf_index]),
+                        RF.Linear([b], [tf_index + 1]),
+                        RF.Linear([c], [tf_index + 2]),
                         None,
                     ],
                 ]
@@ -142,7 +150,9 @@ class Examples:
             TIME_AXIS = 2
             raw_data = np.moveaxis(data[:, 2], TIME_AXIS, 0)
             raw_data = raw_data.reshape((*raw_data.shape, 1))
-            split_raw = est._split_classes(PromoterModel([[RF.Constant(1)]]), raw_data)
+            split_raw = est._split_classes(
+                PromoterModel([[RF.Constant([1])]]), raw_data
+            )
 
             # Simulated Trajectory
             sim = OneStepSimulator(
@@ -156,7 +166,7 @@ class Examples:
 
             import matplotlib.pyplot as plt
 
-            fig, axes = plt.subplots(2, num_envs + 1, sharey="row", figsize=(5,10))
+            fig, axes = plt.subplots(2, num_envs + 1, sharey="row", figsize=(5, 10))
 
             for i, pair in enumerate(zip(split_sim, split_raw)):
                 res_sim, res_raw = pair
@@ -213,9 +223,9 @@ class Examples:
             data, origin, time_delta, _ = get_tf_data()
             model = Examples.models[2]
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval, "naive_bayes")
+            est = DecodingEstimator(origin, interval, "sgd")
 
-            for replicates in [100]:  # [1, 5, 10, 50, 100]:
+            for replicates in [1, 5, 10, 50, 100]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -233,7 +243,7 @@ class Examples:
         def max_mi_estimation():
             data, origin, _, tf_names = get_tf_data()
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            dummy_model = PromoterModel([RF.Constant(1)])
+            dummy_model = PromoterModel([RF.Constant([1])])
 
             est = DecodingEstimator(origin, interval, "naive_bayes")
             for tf_index, tf in enumerate(tf_names):
@@ -328,7 +338,7 @@ class Examples:
             plt.ylabel("MI")
             plt.xlabel("Length of time interval from origin")
             plt.savefig(f"{Examples.CACHE_FOLDER}/mi_vs_interval.png", dpi=100)
-        
+
         def mi_vs_repeated_intervals():
             data, origin, time_delta, _ = get_tf_data()
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
@@ -399,7 +409,7 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    Examples.Benchmarking.mi_estimation()
+    # Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
