@@ -8,6 +8,7 @@ class GeneticSetup:
     ABS_RATE_BOUND = 2
     RATE_SCALE = 0.05
     TF_COUNT = 5
+    RATE_FNS = RateFunction.Function.__subclasses__()
 
     class Mutation:
         def add_noise(model: PromoterModel, p: float = 0.8) -> None:
@@ -76,7 +77,14 @@ class GeneticSetup:
             ).astype(bool)
 
         def _get_random_rate_fn() -> RateFunction:
-            pass
+            rf_cls = np.random.choice(GeneticSetup.RATE_FNS)
+            n_rates, n_tfs = rf_cls.num_params()
+            return rf_cls(
+                rates=np.random.uniform(
+                    -GeneticSetup.ABS_RATE_BOUND, GeneticSetup.ABS_RATE_BOUND, n_rates
+                ).tolist(),
+                tfs=np.random.choice(GeneticSetup.TF_COUNT, n_tfs).tolist(),
+            )
 
         def _modify_edge(
             model: PromoterModel, p: float = 0.1, existing: bool = False
@@ -101,7 +109,7 @@ class GeneticSetup:
         def add_edge(model: PromoterModel, p: float = 0.1) -> None:
             GeneticSetup.Mutation._modify_edge(model, p, False)
 
-        def flip_edge(model: PromoterModel, p: float = 0.01) -> None:
+        def edit_edge(model: PromoterModel, p: float = 0.01) -> None:
             GeneticSetup.Mutation._modify_edge(model, p, True)
 
     class Crossover:
