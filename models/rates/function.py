@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import List
 from abc import ABC, abstractmethod
 from nptyping import NDArray
 import numpy as np
@@ -6,6 +6,10 @@ import numpy as np
 
 class RateFunction:
     class Function(ABC):
+        def __init__(self, rates: List[float], tfs: List[int] = []):
+            self.rates = rates
+            self.tfs = tfs
+
         @abstractmethod
         def evaluate(self, exo_states: NDArray) -> float:
             pass
@@ -15,36 +19,24 @@ class RateFunction:
             pass
 
     class Constant(Function):
-        def __init__(self, a: float):
-            self.a = a
-
         def evaluate(self, exo_states: NDArray) -> float:
-            return self.a + np.zeros(exo_states.shape[1:])
+            return self.rates[0] + np.zeros(exo_states.shape[1:])
 
         def str(self) -> str:
-            return f"${self.a}$"
+            return f"${self.rates[0]}$"
 
     class Linear(Function):
-        def __init__(self, a: float, exo_index: int):
-            self.a = a
-            self.exo_index = exo_index
-
         def evaluate(self, exo_states: NDArray) -> float:
-            return self.a * exo_states[self.exo_index]
+            return self.rates[0] * exo_states[self.tfs[0]]
 
         def str(self) -> str:
-            return f"${self.a} \cdot TF_{{{self.exo_index}}}$"
+            return f"${self.rates[0]} \cdot TF_{{{self.tfs[0]}}}$"
 
     class Hill(Function):
-        def __init__(self, a: float, b: float, exo_index: int):
-            self.a = a
-            self.b = b
-            self.exo_index = exo_index
-
         def evaluate(self, exo_states: NDArray) -> float:
-            return (self.a * exo_states[self.exo_index]) / (
-                self.b + exo_states[self.exo_index]
+            return (self.rates[0] * exo_states[self.tfs[0]]) / (
+                self.rates[1] + exo_states[self.tfs[0]]
             )
 
         def str(self) -> str:
-            return f"$\\frac{{{self.a} \cdot TF_{{{self.exo_index}}}}}{{{self.b} + TF_{{{self.exo_index}}}}}$"
+            return f"$\\frac{{{self.rates[0]} \cdot TF_{{{self.tfs[0]}}}}}{{{self.rates[1]} + TF_{{{self.tfs[0]}}}}}$"
