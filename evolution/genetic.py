@@ -1,3 +1,4 @@
+from typing import List
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
 import numpy as np
@@ -9,7 +10,7 @@ class GeneticSetup:
     TF_COUNT = 5
 
     class Mutation:
-        def add_noise(model: PromoterModel, p: float = 1.0) -> None:
+        def add_noise(model: PromoterModel, p: float = 0.8) -> None:
             # Unpack rate functions
             rate_fns = np.array(
                 [
@@ -50,15 +51,53 @@ class GeneticSetup:
             for new_rates, rate_fn in zip(rates, rate_fns):
                 rate_fn.rates = list(new_rates[: len(rate_fn.rates)])
 
-        def flip_tf(model: PromoterModel, p: float = 1.0) -> None:
-            pass
+        def flip_tf(model: PromoterModel, p: float = 0.1) -> None:
+            rate_fns = np.array(
+                [
+                    rate_fn
+                    for row in model.rate_fn_matrix
+                    for rate_fn in row
+                    if rate_fn is not None and rate_fn.tfs
+                ],
+                dtype=object,
+            )
+            # For some rate functions, randomly select TFs to be used as input.
+            for rate_fn in rate_fns[np.random.binomial(1, p, len(rate_fns)) == 1]:
+                rate_fn.tfs = list(
+                    np.random.choice(GeneticSetup.TF_COUNT, len(rate_fn.tfs))
+                )
 
-        def flip_activity(model: PromoterModel, p: float = 1.0) -> None:
-            pass
+        def flip_activity(model: PromoterModel, p: float = 0.1) -> None:
+            num_states = len(model.rate_fn_matrix)
+            # Randomly flip activity of node by some probability
+            # Find XOR of Bernoulli sample and current active states
+            model.active_states = model.active_states != np.random.binomial(
+                1, p, num_states
+            ).astype(bool)
 
-        def change_rate(model: PromoterModel) -> None:
+        def change_rate(model: PromoterModel, p: float = 0.01) -> None:
             pass
 
     class Crossover:
-        def swap_inputs(model: PromoterModel, other: PromoterModel) -> PromoterModel:
-            pass
+        def swap_rows(
+            model: PromoterModel, other: PromoterModel
+        ) -> List[PromoterModel]:
+            num_states = len(model.rate_fn_matrix)
+            # Treat rows as chromosomes and perform one-point crossover
+            # Randomly choose splitting point
+            split = 1 + np.random.choice(num_states - 2, 1)
+
+            offspring = []
+            # Generate offspring
+            for fst, snd in [(model, other), (other, model)]:
+                offspring.append(
+                    PromoterModel(
+                        fst.rate_fn_matrix[:split] + snd.rate_fn_matrix[split:]
+                    ).with_active_states(
+                        np.concatenate(
+                            fst.active_states[:split], snd.active_states[split:]
+                        )
+                    )
+                )
+
+            return offspring
