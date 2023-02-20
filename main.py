@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from evolution.genetic import GeneticSetup
 from mi_estimation.decoding import DecodingEstimator
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
@@ -380,6 +381,28 @@ class Examples:
             ps = ParticleSwarm()
             ps.optimise_simple(data)
 
+    class Evolution:
+        def genetic_simple():
+            model = Examples.models[3]
+            print(
+                [
+                    rate_fn.rates
+                    for row in model.rate_fn_matrix
+                    for rate_fn in row
+                    if rate_fn is not None
+                ]
+            )
+            for _ in range(10):
+                GeneticSetup.Mutation.add_noise(model)
+                print(
+                    [
+                        rate_fn.rates
+                        for row in model.rate_fn_matrix
+                        for rate_fn in row
+                        if rate_fn is not None
+                    ]
+                )
+
     class Data:
         def find_labels():
             fpath = "data/"
@@ -423,7 +446,9 @@ def main():
     # Examples.UsingThePipeline.pipeline_example()
 
     # Examples.Optimisation.grid_search()
-    # Examples.Optimisation.particle_swarm()
+    Examples.Optimisation.particle_swarm()
+
+    # Examples.Evolution.genetic_simple()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
