@@ -17,6 +17,8 @@ The project's structure is given as follows:
 ├── archive                       # Archive of my previous attempt
 ├── cache                         # Cached JSONs, numpy arrays, and images
 ├── data                          # Experimental data
+├── evolution
+│   └── genetic.py                # Genetic operators for promoter models 
 ├── main.py                       # Main file
 ├── mi_estimation
 │   ├── decoding.py               # Decoding-based MI estimator
