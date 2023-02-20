@@ -1,6 +1,6 @@
 from typing import List
 from models.model import PromoterModel
-from models.rates.function import RateFunction as RF
+from models.rates.function import RateFunction
 import numpy as np
 
 
@@ -75,8 +75,34 @@ class GeneticSetup:
                 1, p, num_states
             ).astype(bool)
 
-        def change_rate(model: PromoterModel, p: float = 0.01) -> None:
+        def _get_random_rate_fn() -> RateFunction:
             pass
+
+        def _modify_edge(
+            model: PromoterModel, p: float = 0.1, existing: bool = False
+        ) -> None:
+            none_indices = np.array(
+                [
+                    (i, j)
+                    for (i, row) in enumerate(model.rate_fn_matrix)
+                    for (j, rate_fn) in enumerate(row)
+                    if (not existing and rate_fn is None and i != j)
+                    or (existing and rate_fn is not None)
+                ],
+                dtype=object,
+            )
+            none_indices = none_indices[
+                np.random.binomial(1, p, len(none_indices)) == 1
+            ]
+
+            for i, j in none_indices:
+                model.rate_fn_matrix[i][j] = GeneticSetup.Mutation._get_random_rate_fn()
+
+        def add_edge(model: PromoterModel, p: float = 0.1) -> None:
+            GeneticSetup.Mutation._modify_edge(model, p, False)
+
+        def flip_edge(model: PromoterModel, p: float = 0.01) -> None:
+            GeneticSetup.Mutation._modify_edge(model, p, True)
 
     class Crossover:
         def swap_rows(
