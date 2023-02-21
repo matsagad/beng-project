@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from evolution.genetic import GeneticSetup
+from evolution.genetic.operator import Operator
 from mi_estimation.decoding import DecodingEstimator
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
@@ -393,7 +393,7 @@ class Examples:
                 ]
             )
             for _ in range(10):
-                GeneticSetup.Mutation.add_noise(model)
+                Operator.Mutation.add_noise(model)
                 print(
                     [
                         rate_fn.rates
