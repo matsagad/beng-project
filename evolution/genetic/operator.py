@@ -11,7 +11,7 @@ class GeneticOperator:
     TF_COUNT = 5
 
     class Mutation:
-        def add_noise(model: PromoterModel, p: float = 0.8) -> None:
+        def add_noise(model: PromoterModel, p: float = 0.8) -> PromoterModel:
             # Unpack rate functions
             rate_fns = np.array(
                 [
@@ -25,6 +25,8 @@ class GeneticOperator:
 
             # Batch rates through a numpy array padded with nans
             rate_fns = rate_fns[np.random.binomial(1, p, len(rate_fns)) == 1]
+            if len(rate_fns) == 0:
+                return model
             max_num_rates = max(len(rate_fn.rates) for rate_fn in rate_fns)
 
             rates = np.empty((len(rate_fns), max_num_rates))
@@ -51,8 +53,10 @@ class GeneticOperator:
             # Update rates
             for new_rates, rate_fn in zip(rates, rate_fns):
                 rate_fn.rates = list(new_rates[: len(rate_fn.rates)])
+            
+            return model
 
-        def flip_tf(model: PromoterModel, p: float = 0.1) -> None:
+        def flip_tf(model: PromoterModel, p: float = 0.1) -> PromoterModel:
             rate_fns = np.array(
                 [
                     rate_fn
@@ -67,14 +71,18 @@ class GeneticOperator:
                 rate_fn.tfs = list(
                     np.random.choice(GeneticOperator.TF_COUNT, len(rate_fn.tfs))
                 )
+            
+            return model
 
-        def flip_activity(model: PromoterModel, p: float = 0.1) -> None:
+        def flip_activity(model: PromoterModel, p: float = 0.1) -> PromoterModel:
             num_states = len(model.rate_fn_matrix)
             # Randomly flip activity of node by some probability
             # Find XOR of Bernoulli sample and current active states
             model.active_states = model.active_states != np.random.binomial(
                 1, p, num_states
             ).astype(bool)
+
+            return model
 
         def _modify_edge(
             model: PromoterModel, p: float = 0.1, existing: bool = False
@@ -96,11 +104,13 @@ class GeneticOperator:
             for i, j in none_indices:
                 model.rate_fn_matrix[i][j] = ModelGenerator.get_random_rate_fn()
 
-        def add_edge(model: PromoterModel, p: float = 0.1) -> None:
+        def add_edge(model: PromoterModel, p: float = 0.1) -> PromoterModel:
             GeneticOperator.Mutation._modify_edge(model, p, False)
+            return model
 
-        def edit_edge(model: PromoterModel, p: float = 0.01) -> None:
+        def edit_edge(model: PromoterModel, p: float = 0.01) -> PromoterModel:
             GeneticOperator.Mutation._modify_edge(model, p, True)
+            return model
 
     class Crossover:
         def swap_rows(
@@ -109,18 +119,17 @@ class GeneticOperator:
             num_states = len(model.rate_fn_matrix)
             # Treat rows as chromosomes and perform one-point crossover
             # Randomly choose splitting point
-            split = 1 + np.random.choice(num_states - 2, 1)
+            split = 1 if num_states == 2 else 1 + np.random.choice(num_states - 2, 1)
 
             offspring = []
+
             # Generate offspring
             for fst, snd in [(model, other), (other, model)]:
                 offspring.append(
                     PromoterModel(
                         fst.rate_fn_matrix[:split] + snd.rate_fn_matrix[split:]
                     ).with_active_states(
-                        np.concatenate(
-                            fst.active_states[:split], snd.active_states[split:]
-                        )
+                        np.concatenate((fst.active_states[:split], snd.active_states[split:]))
                     )
                 )
 
