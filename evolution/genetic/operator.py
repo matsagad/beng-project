@@ -119,7 +119,7 @@ class GeneticOperator:
             num_states = len(model.rate_fn_matrix)
             # Treat rows as chromosomes and perform one-point crossover
             # Randomly choose splitting point
-            split = 1 if num_states == 2 else 1 + np.random.choice(num_states - 2, 1)
+            split = int(1 if num_states == 2 else 1 + np.random.choice(num_states - 2, 1))
 
             offspring = []
 
