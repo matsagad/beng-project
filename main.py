@@ -1,4 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
+
+from evolution.genetic.runner import GeneticRunner
 from evolution.genetic.operator import GeneticOperator
 from mi_estimation.decoding import DecodingEstimator
 from models.generator import ModelGenerator
@@ -403,10 +405,31 @@ class Examples:
                         if rate_fn is not None
                     ]
                 )
-        
+
         def model_generation():
             for i in range(1):
-                ModelGenerator.get_random_model(10).visualise(save=True, fname=f"cache/latestv2/model{i}.png")
+                ModelGenerator.get_random_model(10).visualise(
+                    save=True, fname=f"cache/latestv2/model{i}.png"
+                )
+
+        def evolutionary_run():
+            data, _, _, _ = get_tf_data()
+
+            mutations = [
+                GeneticOperator.Mutation.add_noise,
+                GeneticOperator.Mutation.add_edge,
+                GeneticOperator.Mutation.edit_edge,
+                GeneticOperator.Mutation.flip_activity,
+            ]
+            runner = GeneticRunner(data, mutations, GeneticOperator.Crossover.swap_rows)
+            model = runner.run(2, 10, verbose=True)
+            print(
+                [
+                    None if not rate_fn else rate_fn.str()
+                    for row in model.rate_fn_matrix
+                    for rate_fn in row
+                ]
+            )
 
     class Data:
         def find_labels():
@@ -454,7 +477,8 @@ def main():
     # Examples.Optimisation.particle_swarm()
 
     # Examples.Evolution.genetic_simple()
-    Examples.Evolution.model_generation()
+    # Examples.Evolution.model_generation()
+    Examples.Evolution.evolutionary_run()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
