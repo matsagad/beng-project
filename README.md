@@ -18,12 +18,15 @@ The project's structure is given as follows:
 ├── cache                         # Cached JSONs, numpy arrays, and images
 ├── data                          # Experimental data
 ├── evolution
-│   └── genetic.py                # Genetic operators for promoter models 
+│   └── genetic
+│       └── operator.py           # Genetic operators for promoter models 
+│       └── runner.py             # Evolutionary runner
 ├── main.py                       # Main file
 ├── mi_estimation
 │   ├── decoding.py               # Decoding-based MI estimator
 │   └── estimator.py              # Abstract class for MI estimators
 ├── models
+│   ├── generator.py              # Random model generator
 │   ├── model.py                  # Promoter model class
 │   ├── preset.py                 # Set of familiar models
 │   └── rates
