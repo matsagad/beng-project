@@ -52,7 +52,7 @@ class RateFunction:
         def str(self) -> str:
             return (
                 f"$\\frac{{{'{:.3f}'.format(self.rates[0])} \cdot TF_{{{self.tfs[0]}}}}}"
-                + "{{{'{:.3f}'.format(self.rates[1])} + TF_{{{self.tfs[0]}}}}}$"
+                + f"{{{'{:.3f}'.format(self.rates[1])} + TF_{{{self.tfs[0]}}}}}$"
             )
 
         def num_params() -> Tuple[int, int]:
