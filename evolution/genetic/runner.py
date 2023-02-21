@@ -27,10 +27,10 @@ class GeneticRunner:
     def run(
         self,
         states: int,
-        population: int = 8,
+        population: int = 10,
         elite_ratio: float = 0.2,
-        iterations: int = 1,
-        n_processors: int = 8,
+        iterations: int = 10,
+        n_processors: int = 10,
         verbose: bool = True,
     ) -> None:
         # Randomly initialise random models with specified number of states
@@ -66,7 +66,7 @@ class GeneticRunner:
                 print(f"({iter + 1}/{iterations}):\t Best found: {best_mi}")
 
             # Keep elites in next generation
-            elite = [model for _, model in top_models[:num_elites]]
+            elite = [models[i] for _, i in top_models[:num_elites]]
 
             # Crossover random parents and mutate their offspring
             parents = np.random.permutation(population)
