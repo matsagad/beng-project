@@ -13,10 +13,13 @@ class ModelGenerator:
         rf_cls = np.random.choice(ModelGenerator.RATE_FNS)
         n_rates, n_tfs = rf_cls.num_params()
         return rf_cls(
-            rates=np.random.uniform(
-                low,
-                high,
-                n_rates,
+            rates=(
+                10
+                ** np.random.uniform(
+                    low,
+                    high,
+                    n_rates,
+                )
             ).tolist(),
             tfs=np.random.choice(ModelGenerator.TF_COUNT, n_tfs).tolist(),
         )
