@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
-from evolution.genetic.operator import Operator
+from evolution.genetic.operator import GeneticOperator
 from mi_estimation.decoding import DecodingEstimator
+from models.generator import ModelGenerator
 from models.model import PromoterModel
 from models.rates.function import RateFunction as RF
 from optimisation.grid_search import GridSearch
@@ -393,7 +394,7 @@ class Examples:
                 ]
             )
             for _ in range(10):
-                Operator.Mutation.add_noise(model)
+                GeneticOperator.Mutation.add_noise(model)
                 print(
                     [
                         rate_fn.rates
@@ -402,6 +403,10 @@ class Examples:
                         if rate_fn is not None
                     ]
                 )
+        
+        def model_generation():
+            for i in range(1):
+                ModelGenerator.get_random_model(10).visualise(save=True, fname=f"cache/latestv2/model{i}.png")
 
     class Data:
         def find_labels():
@@ -446,9 +451,10 @@ def main():
     # Examples.UsingThePipeline.pipeline_example()
 
     # Examples.Optimisation.grid_search()
-    Examples.Optimisation.particle_swarm()
+    # Examples.Optimisation.particle_swarm()
 
     # Examples.Evolution.genetic_simple()
+    Examples.Evolution.model_generation()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
