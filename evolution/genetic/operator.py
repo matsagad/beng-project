@@ -1,14 +1,14 @@
 from typing import List
+from models.generator import ModelGenerator
 from models.model import PromoterModel
 from models.rates.function import RateFunction
 import numpy as np
 
 
-class GeneticSetup:
+class GeneticOperator:
     ABS_RATE_BOUND = 2
     RATE_SCALE = 0.05
     TF_COUNT = 5
-    RATE_FNS = RateFunction.Function.__subclasses__()
 
     class Mutation:
         def add_noise(model: PromoterModel, p: float = 0.8) -> None:
@@ -36,13 +36,13 @@ class GeneticSetup:
             _rates = rates[~np.isnan(rates)]
             modified_rates = np.log10(
                 _rates
-            ) + GeneticSetup.RATE_SCALE * np.random.normal(0, 1, len(_rates))
-            out_of_bounds = np.absolute(modified_rates) > GeneticSetup.ABS_RATE_BOUND
+            ) + GeneticOperator.RATE_SCALE * np.random.normal(0, 1, len(_rates))
+            out_of_bounds = np.absolute(modified_rates) > GeneticOperator.ABS_RATE_BOUND
             modified_rates[out_of_bounds] = np.sign(modified_rates[out_of_bounds]) * (
-                GeneticSetup.ABS_RATE_BOUND
+                GeneticOperator.ABS_RATE_BOUND
                 - (
                     np.absolute(modified_rates[out_of_bounds])
-                    / (2 * GeneticSetup.ABS_RATE_BOUND)
+                    / (2 * GeneticOperator.ABS_RATE_BOUND)
                 )
                 % 1.0
             )
@@ -65,7 +65,7 @@ class GeneticSetup:
             # For some rate functions, randomly select TFs to be used as input.
             for rate_fn in rate_fns[np.random.binomial(1, p, len(rate_fns)) == 1]:
                 rate_fn.tfs = list(
-                    np.random.choice(GeneticSetup.TF_COUNT, len(rate_fn.tfs))
+                    np.random.choice(GeneticOperator.TF_COUNT, len(rate_fn.tfs))
                 )
 
         def flip_activity(model: PromoterModel, p: float = 0.1) -> None:
@@ -75,16 +75,6 @@ class GeneticSetup:
             model.active_states = model.active_states != np.random.binomial(
                 1, p, num_states
             ).astype(bool)
-
-        def _get_random_rate_fn() -> RateFunction:
-            rf_cls = np.random.choice(GeneticSetup.RATE_FNS)
-            n_rates, n_tfs = rf_cls.num_params()
-            return rf_cls(
-                rates=np.random.uniform(
-                    -GeneticSetup.ABS_RATE_BOUND, GeneticSetup.ABS_RATE_BOUND, n_rates
-                ).tolist(),
-                tfs=np.random.choice(GeneticSetup.TF_COUNT, n_tfs).tolist(),
-            )
 
         def _modify_edge(
             model: PromoterModel, p: float = 0.1, existing: bool = False
@@ -104,13 +94,13 @@ class GeneticSetup:
             ]
 
             for i, j in none_indices:
-                model.rate_fn_matrix[i][j] = GeneticSetup.Mutation._get_random_rate_fn()
+                model.rate_fn_matrix[i][j] = ModelGenerator.get_random_rate_fn()
 
         def add_edge(model: PromoterModel, p: float = 0.1) -> None:
-            GeneticSetup.Mutation._modify_edge(model, p, False)
+            GeneticOperator.Mutation._modify_edge(model, p, False)
 
         def edit_edge(model: PromoterModel, p: float = 0.01) -> None:
-            GeneticSetup.Mutation._modify_edge(model, p, True)
+            GeneticOperator.Mutation._modify_edge(model, p, True)
 
     class Crossover:
         def swap_rows(
