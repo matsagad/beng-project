@@ -154,3 +154,14 @@ class PromoterModel:
             return
 
         plt.show()
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                *(tuple(row) for row in self.rate_fn_matrix),
+                *tuple(self.active_states),
+            )
+        )
+
+    def hash(self) -> str:
+        return hex((self.__hash__() + (1 << 64)) % (1 << 64))
