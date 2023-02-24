@@ -413,6 +413,8 @@ class Examples:
                 )
 
         def evolutionary_run():
+            import pickle
+
             data, _, _, _ = get_tf_data()
 
             mutations = [
@@ -421,15 +423,69 @@ class Examples:
                 GeneticOperator.Mutation.edit_edge,
                 GeneticOperator.Mutation.flip_activity,
             ]
+            states = 3
+            population, iterations = 10, 10
+            fname = f"best_models_{states}_{population}_{iterations}.dat"
+
             runner = GeneticRunner(data, mutations, GeneticOperator.Crossover.swap_rows)
-            model = runner.run(2, 10, verbose=True)
-            print(
-                [
-                    None if not rate_fn else rate_fn.str()
-                    for row in model.rate_fn_matrix
-                    for rate_fn in row
-                ]
+            models = runner.run(
+                states=states,
+                population=population,
+                iterations=iterations,
+                verbose=True,
+                debug=True
             )
+
+            with open(fname, "wb") as f:
+                pickle.dump(models, f)
+                print("Cached best models")
+
+        def load_best_models():
+            import pickle
+
+            data, _, _, _ = get_tf_data()
+            states = 3
+            population, iterations = 10, 10
+            fname = f"best_models_{states}_{population}_{iterations}.dat"
+
+            with open(fname, "rb") as f:
+                models = pickle.load(f)
+
+            pip = OneStepDecodingPipeline(
+                data, realised=True, replicates=10, classifier_name="naive_bayes"
+            )
+
+            for model in models:
+                print(pip.evaluate(model))
+
+        def crossover_no_side_effects():
+            model1 = PromoterModel(
+                [[None, RF.Constant([1.23])], [RF.Linear([2.345], [1]), None]]
+            )
+            model2 = PromoterModel(
+                [[None, RF.Linear([4.56], [2])], [RF.Constant([0.123]), None]]
+            )
+            for model in (model1, model2):
+                print(model.hash()[:6])
+
+            data, _, _, _ = get_tf_data()
+            mutations = [
+                GeneticOperator.Mutation.add_noise,
+                GeneticOperator.Mutation.add_edge,
+                GeneticOperator.Mutation.edit_edge,
+                GeneticOperator.Mutation.flip_activity,
+            ]
+
+            runner = GeneticRunner(data, mutations, GeneticOperator.Crossover.swap_rows)
+
+            # Model1 can change hash but model2 must remain the same
+            children = runner.crossover(model1, model2, False, True)
+            for child in children:
+                for _ in range(100):
+                    runner.mutate(child)
+
+            for model in (model1, model2):
+                print(model.hash()[:6])
 
     class Data:
         def find_labels():
@@ -479,6 +535,8 @@ def main():
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
     Examples.Evolution.evolutionary_run()
+    # Examples.Evolution.load_best_models()
+    # Examples.Evolution.crossover_no_side_effects()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
