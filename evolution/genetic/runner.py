@@ -32,6 +32,7 @@ class GeneticRunner:
         iterations: int = 10,
         n_processors: int = 10,
         verbose: bool = True,
+        debug: bool = False,
     ) -> None:
         # Randomly initialise random models with specified number of states
         models = [ModelGenerator.get_random_model(states) for _ in range(population)]
@@ -39,7 +40,7 @@ class GeneticRunner:
         num_elites = int(population * elite_ratio)
         num_children = population - num_elites
         best_mi = 0
-        best_model = None
+        best_model_hash = ""
 
         for iter in range(iterations):
             top_models = []
@@ -58,15 +59,37 @@ class GeneticRunner:
                     i, mi = future.result()
                     heapq.heappush(top_models, (-mi, i))
 
-            if -top_models[0][0] > best_mi:
-                best_mi = -top_models[0][0]
-                best_model = top_models[0][1]
+            curr_best_mi = -top_models[0][0]
+            curr_best_model_hash = models[top_models[0][1]].hash()[2:8]
+
+            if curr_best_mi > best_mi:
+                best_mi = curr_best_mi
+                best_model_hash = curr_best_model_hash
 
             if verbose:
-                print(f"({iter + 1}/{iterations}):\t Best found: {best_mi}")
+                print(
+                    f"({(iter + 1):02}/{iterations}):\t Best: {best_mi:.3f} ({best_model_hash})"
+                    + f"\t Current: {curr_best_mi:.3f} ({curr_best_model_hash})"
+                )
 
             # Keep elites in next generation
-            elite = [models[i] for _, i in top_models[:num_elites]]
+            _elite_indices = heapq.nsmallest(num_elites, top_models)
+            elite_indices = set(i for _, i in _elite_indices)
+            elite = [models[i] for _, i in _elite_indices]
+
+            if debug:
+                print("Elites:")
+                print(
+                    ",".join(
+                        [
+                            f"({-mi:.3f}, {models[i].hash()[2:8]})"
+                            for mi, i in _elite_indices
+                        ]
+                    )
+                )
+
+            if iter == iterations - 1:
+                return elite
 
             # Crossover random parents and mutate their offspring
             parents = np.random.permutation(population)
@@ -77,10 +100,15 @@ class GeneticRunner:
             ):
                 children.extend(
                     self.mutate(child)
-                    for child in self.crossover(models[parent1], models[parent2])
+                    for child in self.crossover(
+                        models[parent1],
+                        models[parent2],
+                        parent1 in elite_indices,
+                        parent2 in elite_indices,
+                    )
                 )
 
-            models = children
-            models.extend(elite)
-
-        return models[best_model]
+            models = elite + children
+            if debug:
+                print("Next generation:")
+                print(",".join([model.hash()[2:8] for model in models]))
