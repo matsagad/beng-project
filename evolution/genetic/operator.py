@@ -1,13 +1,13 @@
 from typing import List
 from models.generator import ModelGenerator
 from models.model import PromoterModel
-from models.rates.function import RateFunction
+import copy
 import numpy as np
 
 
 class GeneticOperator:
     ABS_RATE_BOUND = 2
-    RATE_SCALE = 0.05
+    RATE_SCALE = 0.1
     TF_COUNT = 5
 
     class Mutation:
@@ -53,10 +53,10 @@ class GeneticOperator:
             # Update rates
             for new_rates, rate_fn in zip(rates, rate_fns):
                 rate_fn.rates = list(new_rates[: len(rate_fn.rates)])
-            
+
             return model
 
-        def flip_tf(model: PromoterModel, p: float = 0.1) -> PromoterModel:
+        def flip_tf(model: PromoterModel, p: float = 0.4) -> PromoterModel:
             rate_fns = np.array(
                 [
                     rate_fn
@@ -71,10 +71,10 @@ class GeneticOperator:
                 rate_fn.tfs = list(
                     np.random.choice(GeneticOperator.TF_COUNT, len(rate_fn.tfs))
                 )
-            
+
             return model
 
-        def flip_activity(model: PromoterModel, p: float = 0.1) -> PromoterModel:
+        def flip_activity(model: PromoterModel, p: float = 0.2) -> PromoterModel:
             num_states = len(model.rate_fn_matrix)
             # Randomly flip activity of node by some probability
             # Find XOR of Bernoulli sample and current active states
@@ -104,17 +104,20 @@ class GeneticOperator:
             for i, j in none_indices:
                 model.rate_fn_matrix[i][j] = ModelGenerator.get_random_rate_fn()
 
-        def add_edge(model: PromoterModel, p: float = 0.1) -> PromoterModel:
+        def add_edge(model: PromoterModel, p: float = 0.2) -> PromoterModel:
             GeneticOperator.Mutation._modify_edge(model, p, False)
             return model
 
-        def edit_edge(model: PromoterModel, p: float = 0.01) -> PromoterModel:
+        def edit_edge(model: PromoterModel, p: float = 0.4) -> PromoterModel:
             GeneticOperator.Mutation._modify_edge(model, p, True)
             return model
 
     class Crossover:
         def swap_rows(
-            model: PromoterModel, other: PromoterModel
+            model: PromoterModel,
+            other: PromoterModel,
+            model_is_elite: bool = False,
+            other_is_elite: bool = False,
         ) -> List[PromoterModel]:
             num_states = len(model.rate_fn_matrix)
             # Treat rows as chromosomes and perform one-point crossover
