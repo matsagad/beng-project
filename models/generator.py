@@ -76,7 +76,6 @@ class ModelGenerator:
             np.random.binomial(1, p_edge, len(unconnected)) == 1
         ]:
             rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn()
-
         return PromoterModel(rate_fn_matrix).with_active_states(
-            np.random.binomial(1, 0.5, states)
+            np.random.binomial(1, 0.5, states).astype(bool)
         )
