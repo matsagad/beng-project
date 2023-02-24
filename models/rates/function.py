@@ -23,12 +23,15 @@ class RateFunction:
         def num_params() -> Tuple[int, int]:
             pass
 
+        def _str(self) -> str:
+            return f"{self.__class__.__name__}({self.rates}, {self.tfs})"
+
     class Constant(Function):
         def evaluate(self, exo_states: NDArray) -> float:
             return self.rates[0] + np.zeros(exo_states.shape[1:])
 
         def str(self) -> str:
-            return f"${'{:.3f}'.format(self.rates[0])}$"
+            return f"${self.rates[0]:.3f}$"
 
         def num_params() -> Tuple[int, int]:
             return 1, 0
@@ -38,7 +41,7 @@ class RateFunction:
             return self.rates[0] * exo_states[self.tfs[0]]
 
         def str(self) -> str:
-            return f"${'{:.3f}'.format(self.rates[0])} \cdot TF_{{{self.tfs[0]}}}$"
+            return f"${self.rates[0]:.3f} \cdot TF_{{{self.tfs[0]}}}$"
 
         def num_params() -> Tuple[int, int]:
             return 1, 1
@@ -51,8 +54,8 @@ class RateFunction:
 
         def str(self) -> str:
             return (
-                f"$\\frac{{{'{:.3f}'.format(self.rates[0])} \cdot TF_{{{self.tfs[0]}}}}}"
-                + f"{{{'{:.3f}'.format(self.rates[1])} + TF_{{{self.tfs[0]}}}}}$"
+                f"$\\frac{{{self.rates[0]:.3f} \cdot TF_{{{self.tfs[0]}}}}}"
+                + f"{{{self.rates[1]:.3f} + TF_{{{self.tfs[0]}}}}}$"
             )
 
         def num_params() -> Tuple[int, int]:
