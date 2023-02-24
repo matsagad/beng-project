@@ -122,17 +122,31 @@ class GeneticOperator:
             num_states = len(model.rate_fn_matrix)
             # Treat rows as chromosomes and perform one-point crossover
             # Randomly choose splitting point
-            split = int(1 if num_states == 2 else 1 + np.random.choice(num_states - 2, 1))
+            split = int(
+                1 if num_states == 2 else 1 + np.random.choice(num_states - 2, 1)
+            )
 
             offspring = []
+            # If model is not elite then it is no longer used in the next generation
+            # and thus its rate functions can be reused. If it is an elite, then its
+            # rate functions should be copied to avoid side-effects from mutations.
+            model_copy = copy.deepcopy if model_is_elite else lambda x: x
+            other_copy = copy.deepcopy if other_is_elite else lambda x: x
+            _models = [(model, model_copy), (other, other_copy)]
 
             # Generate offspring
-            for fst, snd in [(model, other), (other, model)]:
+            for (fst, fst_copy), (snd, snd_copy) in zip(_models, _models[::-1]):
                 offspring.append(
                     PromoterModel(
-                        fst.rate_fn_matrix[:split] + snd.rate_fn_matrix[split:]
+                        fst_copy(fst.rate_fn_matrix[:split])
+                        + snd_copy(snd.rate_fn_matrix[split:])
                     ).with_active_states(
-                        np.concatenate((fst.active_states[:split], snd.active_states[split:]))
+                        np.concatenate(
+                            (
+                                fst_copy(fst.active_states[:split]),
+                                snd_copy(snd.active_states[split:]),
+                            )
+                        )
                     )
                 )
 
