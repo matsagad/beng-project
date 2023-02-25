@@ -100,7 +100,7 @@ class Examples:
             ).with_active_states([0, 1, 2])
 
             # Visualise
-            model.visualise()
+            model.visualise(save=True, fname="cache/model10.png")
 
         def visualise_trajectory_example():
             data, _, time_delta, _ = get_tf_data()
@@ -143,9 +143,11 @@ class Examples:
 
         def visualise_activity():
             data, origin, time_delta, _ = get_tf_data()
-            data = data[:1]
 
-            model = Examples.models[2]
+            # model = Examples.models[2]
+            model = PromoterModel(
+                [[None, RF.Linear([10], [4])], [RF.Linear([4.7], [2]), None]]
+            )
             replicates = 10
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
@@ -193,7 +195,7 @@ class Examples:
 
             fig.colorbar(im, ax=axes, location="bottom")
 
-            plt.savefig(f"{Examples.CACHE_FOLDER}/binary_vis.png", dpi=200)
+            plt.savefig(f"{Examples.CACHE_FOLDER}/binary_vis_best2.png", dpi=200)
 
     class Benchmarking:
         def matrix_exponentials():
@@ -423,17 +425,19 @@ class Examples:
                 GeneticOperator.Mutation.edit_edge,
                 GeneticOperator.Mutation.flip_activity,
             ]
-            states = 3
-            population, iterations = 10, 10
+            states = 5
+            population, iterations = 20, 20
             fname = f"best_models_{states}_{population}_{iterations}.dat"
 
-            runner = GeneticRunner(data, mutations, GeneticOperator.Crossover.swap_rows)
+            runner = GeneticRunner(
+                data, mutations, GeneticOperator.Crossover.one_point_row_swap
+            )
             models = runner.run(
                 states=states,
                 population=population,
                 iterations=iterations,
                 verbose=True,
-                debug=True
+                # debug=True
             )
 
             with open(fname, "wb") as f:
@@ -444,8 +448,8 @@ class Examples:
             import pickle
 
             data, _, _, _ = get_tf_data()
-            states = 3
-            population, iterations = 10, 10
+            states = 4
+            population, iterations = 20, 20
             fname = f"best_models_{states}_{population}_{iterations}.dat"
 
             with open(fname, "rb") as f:
@@ -455,8 +459,12 @@ class Examples:
                 data, realised=True, replicates=10, classifier_name="naive_bayes"
             )
 
-            for model in models:
+            for i, model in enumerate(models):
                 print(pip.evaluate(model))
+                model.visualise(
+                    save=True,
+                    fname=f"cache/evolution/{states}_{population}_{iterations}_{i}.png",
+                )
 
         def crossover_no_side_effects():
             model1 = PromoterModel(
@@ -476,7 +484,9 @@ class Examples:
                 GeneticOperator.Mutation.flip_activity,
             ]
 
-            runner = GeneticRunner(data, mutations, GeneticOperator.Crossover.swap_rows)
+            runner = GeneticRunner(
+                data, mutations, GeneticOperator.Crossover.one_point_row_swap
+            )
 
             # Model1 can change hash but model2 must remain the same
             children = runner.crossover(model1, model2, False, True)
@@ -486,6 +496,42 @@ class Examples:
 
             for model in (model1, model2):
                 print(model.hash()[:6])
+
+        def models_generated_are_valid():
+            # Random models are valid
+            for _ in range(100):
+                model = ModelGenerator.get_random_model(10, p_edge=0.5)
+                if not ModelGenerator.is_valid(model, verbose=True):
+                    print("not valid yoo")
+
+            data, _, _, _ = get_tf_data()
+            mutations = [
+                GeneticOperator.Mutation.add_noise,
+                GeneticOperator.Mutation.add_edge,
+                GeneticOperator.Mutation.edit_edge,
+                GeneticOperator.Mutation.flip_tf,
+            ]
+
+            runner = GeneticRunner(
+                data, mutations, GeneticOperator.Crossover.one_point_triangular_row_swap
+            )
+
+            models = [
+                ModelGenerator.get_random_model(10, p_edge=0.5),
+                ModelGenerator.get_random_model(10, p_edge=0.5),
+            ]
+
+            # Crossover maintains reversibility
+            for _ in range(100):
+                models = runner.crossover(*models, False, False)
+                for model in models:
+                    ModelGenerator.is_valid(model, verbose=True)
+
+            # Mutations maintain reversibility
+            model = models[0]
+            for _ in range(100):
+                model = runner.mutate(model)
+                ModelGenerator.is_valid(model, verbose=True)
 
     class Data:
         def find_labels():
@@ -534,9 +580,10 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    Examples.Evolution.evolutionary_run()
+    # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
+    Examples.Evolution.models_generated_are_valid()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
