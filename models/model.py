@@ -18,9 +18,9 @@ class PromoterModel:
         # Probabilistic initial state is uniform distribution
         self.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
 
-        # Only active state is last state by default
+        # Only active state is first state by default
         self.active_states = np.zeros(len(rate_fn_matrix), dtype=bool)
-        self.active_states[-1] = True
+        self.active_states[0] = True
         # (should be changed for models with more than one active
         # state, e.g. competing activator)
 

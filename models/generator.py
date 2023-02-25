@@ -86,7 +86,7 @@ class ModelGenerator:
 
         # Must only have one active state
         active_states = np.zeros(states).astype(bool)
-        active_states[np.random.choice(states)] = True
+        active_states[0] = True
 
         return PromoterModel(rate_fn_matrix).with_active_states(active_states)
 
