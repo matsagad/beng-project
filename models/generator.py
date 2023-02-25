@@ -81,6 +81,54 @@ class ModelGenerator:
             np.random.binomial(1, p_edge, len(unconnected)) == 1
         ]:
             rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn()
-        return PromoterModel(rate_fn_matrix).with_active_states(
-            np.random.binomial(1, 0.5, states).astype(bool)
-        )
+            if reversible:
+                rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn()
+
+        # Must only have one active state
+        active_states = np.zeros(states).astype(bool)
+        active_states[np.random.choice(states)] = True
+
+        return PromoterModel(rate_fn_matrix).with_active_states(active_states)
+
+    def is_valid(model: PromoterModel, verbose: bool = False) -> bool:
+        # Check if all components are connected
+        adj_list = [
+            {adj for adj, rate_fn in enumerate(row) if rate_fn is not None}
+            for row in model.rate_fn_matrix
+        ]
+        ## There must be at least one connection to first state
+        if not adj_list or not adj_list[0]:
+            if verbose:
+                print(f"Model {model.hash()} is not connected.")
+            return False
+        stack = [next(iter(adj_list[0]))]
+        seen = set()
+
+        while stack:
+            state = stack.pop()
+            stack.extend(adj for adj in adj_list[state] if adj not in seen)
+            seen.add(state)
+
+        num_states = len(model.rate_fn_matrix)
+        if len(seen) != num_states:
+            if verbose:
+                print(f"Model {model.hash()} is not connected.")
+            return False
+
+        # Check all reactions are reversible
+        for state in range(len(adj_list)):
+            if any(state not in adj_list[adj] for adj in adj_list[state]):
+                if verbose:
+                    print(f"Model {model.hash()} has an irreversible edge.")
+                return False
+
+        # Check there is exactly one active state
+        num_active_states = sum(model.active_states)
+        if num_active_states != 1:
+            if verbose:
+                print(
+                    f"Model {model.hash()} has {num_active_states} active states (expected one)."
+                )
+            return False
+
+        return True
