@@ -9,7 +9,7 @@ class OneStepDecodingPipeline(Pipeline):
     # Constants derived from data
     FIXED_TIME_DELTA = 2.525
     FIXED_ORIGIN = 47
-    FIXED_INTERVAL = 20
+    FIXED_INTERVAL = 30
 
     def __init__(
         self,
@@ -25,7 +25,7 @@ class OneStepDecodingPipeline(Pipeline):
             simulator=OneStepSimulator(
                 exogenous_data, tau, realised=realised, replicates=replicates
             ),
-            estimator=DecodingEstimator(origin, interval, classifier_name),
+            estimator=DecodingEstimator(origin, interval, classifier_name, replicates=replicates),
         )
 
     def evaluate(self, model: PromoterModel, verbose: bool = False) -> float:

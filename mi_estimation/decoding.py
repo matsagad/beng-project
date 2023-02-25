@@ -70,6 +70,7 @@ class DecodingEstimator(MIEstimator):
         origin: int,
         interval: int,
         classifier_name: str = "svm",
+        replicates: int = 1,
         classifier: any = None,
         classifier_params: Dict[str, Any] = None,
     ):
@@ -88,6 +89,8 @@ class DecodingEstimator(MIEstimator):
         self.classifier = cfg["classifier"]
         self.classifier_params = cfg["params"]
         self.parallel = False
+
+        self.replicates = replicates
 
     def _split_classes(
         self,
