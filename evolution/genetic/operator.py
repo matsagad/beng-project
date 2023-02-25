@@ -85,15 +85,22 @@ class GeneticOperator:
             return model
 
         def _modify_edge(
-            model: PromoterModel, p: float = 0.1, existing: bool = False
+            model: PromoterModel,
+            p: float = 0.1,
+            existing: bool = False,
+            reversible: bool = True,
         ) -> None:
             none_indices = np.array(
                 [
                     (i, j)
                     for (i, row) in enumerate(model.rate_fn_matrix)
                     for (j, rate_fn) in enumerate(row)
-                    if (not existing and rate_fn is None and i != j)
-                    or (existing and rate_fn is not None)
+                    if (existing and rate_fn is not None)
+                    or (
+                        not existing
+                        and rate_fn is None
+                        and ((reversible and i > j) or (not reversible and i != j))
+                    )
                 ],
                 dtype=object,
             )
@@ -103,13 +110,18 @@ class GeneticOperator:
 
             for i, j in none_indices:
                 model.rate_fn_matrix[i][j] = ModelGenerator.get_random_rate_fn()
+                # Create edge in both directions to make reaction reversible
+                if reversible:
+                    model.rate_fn_matrix[j][i] = ModelGenerator.get_random_rate_fn()
 
-        def add_edge(model: PromoterModel, p: float = 0.2) -> PromoterModel:
-            GeneticOperator.Mutation._modify_edge(model, p, False)
+        def add_edge(
+            model: PromoterModel, p: float = 0.2, reversible: bool = True
+        ) -> PromoterModel:
+            GeneticOperator.Mutation._modify_edge(model, p, False, reversible)
             return model
 
         def edit_edge(model: PromoterModel, p: float = 0.4) -> PromoterModel:
-            GeneticOperator.Mutation._modify_edge(model, p, True)
+            GeneticOperator.Mutation._modify_edge(model, p, True, False)
             return model
 
     class Crossover:

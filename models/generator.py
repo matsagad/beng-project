@@ -55,12 +55,16 @@ class ModelGenerator:
 
         return edges
 
-    def get_random_model(states: int, p_edge: float = 0.5) -> PromoterModel:
+    def get_random_model(
+        states: int, p_edge: float = 0.5, reversible: bool = True
+    ) -> PromoterModel:
         # Find a random unfirom spanning tree
         ust = ModelGenerator._find_uniform_spanning_tree(states)
         rate_fn_matrix = [[None] * states for _ in range(states)]
         for start, end in ust:
             rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn()
+            if reversible:
+                rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn()
 
         # Connect any other edges with some probability
         unconnected = np.array(
@@ -68,7 +72,8 @@ class ModelGenerator:
                 (i, j)
                 for i in range(states)
                 for j in range(states)
-                if i != j and rate_fn_matrix[i][j] is None
+                if rate_fn_matrix[i][j] is None
+                and ((not reversible and i != j) or (reversible and i > j))
             ],
             dtype=object,
         )
