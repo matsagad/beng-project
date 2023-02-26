@@ -229,9 +229,10 @@ class Examples:
             data, origin, time_delta, _ = get_tf_data()
             model = Examples.models[2]
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval, "sgd")
+            est = DecodingEstimator(origin, interval, "naive_bayes")
+            est.parallel = True
 
-            for replicates in [1, 5, 10, 50, 100]:
+            for replicates in [1, 5, 10, 50, 100, 200]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -253,7 +254,7 @@ class Examples:
 
             est = DecodingEstimator(origin, interval, "naive_bayes")
             for tf_index, tf in enumerate(tf_names):
-                for replicates in [1]:
+                for replicates in [1, 1, 1, 1, 1, 1]:
                     TIME_AXIS = 2
                     raw_data = np.moveaxis(data[:, tf_index], TIME_AXIS, 0)
                     raw_data = raw_data.reshape((*raw_data.shape, 1))
@@ -375,6 +376,80 @@ class Examples:
 
                 print(f"MI: {mi_score}")
 
+        def _evaluate(estimator, model, trajectories, i):
+            mi = estimator.estimate(model, trajectories)
+            return mi, i
+
+        def mi_distribution():
+            data, origin, time_delta, _ = get_tf_data()
+            model = Examples.models[2]
+
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+            est = DecodingEstimator(origin, interval, "naive_bayes")
+            est.parallel = False
+
+            iters = 25
+            rep_count = [1, 2, 5, 10, 20]
+            n_processors = 10
+
+            fname = f"mi_dist_rand_{iters}_{'_'.join(map(str,rep_count))}.dat"
+            import pickle, os
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+
+            if os.path.isfile(fname):
+                print("Using cached MI distribution.")
+                with open(fname, "rb") as f:
+                    hist_map = pickle.load(f)
+            else:
+                hist_map = dict()
+
+                for reps in rep_count:
+                    hist_map[reps] = []
+
+                    # Simulate
+                    sim = OneStepSimulator(
+                        data, tau=time_delta, realised=True, replicates=reps
+                    )
+                    trajectories = sim.simulate(model)
+
+                    # Estimate MI
+                    with ProcessPoolExecutor(
+                        max_workers=min(n_processors, iters),
+                    ) as executor:
+                        futures = []
+                        for i in range(iters):
+                            futures.append(
+                                executor.submit(
+                                    Examples.Benchmarking._evaluate,
+                                    est,
+                                    model,
+                                    trajectories,
+                                    i,
+                                )
+                            )
+
+                        for future in as_completed(futures):
+                            mi_score, i = future.result()
+                            hist_map[reps].append(mi_score)
+                            print(f"{reps}-{i}: {mi_score:.3f}")
+
+                with open(fname, "wb") as f:
+                    pickle.dump(hist_map, f)
+                    print("Cached best MI distribution.")
+
+            import matplotlib.pyplot as plt
+
+            # plt.style.use("seaborn-deep")
+
+            bins = np.linspace(0, 0.6, 60)
+
+            for reps, hist in hist_map.items():
+                plt.hist(hist, bins, alpha=0.5, label=f"{reps} reps", edgecolor="black")
+
+            # plt.hist(list(hist_map.values()), bins, label=list(hist_map.keys()))
+            plt.legend(loc="upper right")
+            plt.savefig(f"{Examples.CACHE_FOLDER}/mi_distribution.png", dpi=200)
+
     class Optimisation:
         def grid_search():
             data, _, _, tf_names = get_tf_data()
@@ -423,14 +498,14 @@ class Examples:
                 GeneticOperator.Mutation.add_noise,
                 GeneticOperator.Mutation.add_edge,
                 GeneticOperator.Mutation.edit_edge,
-                GeneticOperator.Mutation.flip_activity,
+                GeneticOperator.Mutation.flip_tf,
             ]
-            states = 5
-            population, iterations = 20, 20
-            fname = f"best_models_{states}_{population}_{iterations}.dat"
+            states = 3
+            population, iterations = 40, 40
+            fname = f"best_models_new_{states}_{population}_{iterations}.dat"
 
             runner = GeneticRunner(
-                data, mutations, GeneticOperator.Crossover.one_point_row_swap
+                data, mutations, GeneticOperator.Crossover.one_point_triangular_row_swap
             )
             models = runner.run(
                 states=states,
@@ -448,9 +523,9 @@ class Examples:
             import pickle
 
             data, _, _, _ = get_tf_data()
-            states = 4
+            states = 3
             population, iterations = 20, 20
-            fname = f"best_models_{states}_{population}_{iterations}.dat"
+            fname = f"best_models_new_{states}_{population}_{iterations}.dat"
 
             with open(fname, "rb") as f:
                 models = pickle.load(f)
@@ -562,11 +637,12 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    # Examples.Benchmarking.mi_estimation()
+    Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
     # Examples.Benchmarking.mi_vs_repeated_intervals()
+    # Examples.Benchmarking.mi_distribution()
 
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
@@ -583,7 +659,7 @@ def main():
     # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
-    Examples.Evolution.models_generated_are_valid()
+    # Examples.Evolution.models_generated_are_valid()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
