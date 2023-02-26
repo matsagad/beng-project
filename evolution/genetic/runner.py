@@ -14,12 +14,19 @@ class GeneticRunner:
     def _compose(self, arg, fs):
         return reduce(lambda _arg, _f: _f(_arg), fs, arg)
 
-    def __init__(self, data: NDArray, mutations: List[Callable], crossover: Callable):
+    def __init__(
+        self,
+        data: NDArray,
+        mutations: List[Callable],
+        crossover: Callable,
+        select: Callable,
+    ):
         self.pip = OneStepDecodingPipeline(
             data, realised=True, replicates=10, classifier_name="naive_bayes"
         )
         self.mutate = lambda x: self._compose(x, mutations)
         self.crossover = crossover
+        self.select = select
 
     def _evaluate(pip: Pipeline, model: PromoterModel, index: int) -> Tuple[int, float]:
         return index, pip.evaluate(model, verbose=False)
@@ -73,9 +80,12 @@ class GeneticRunner:
                 )
 
             # Keep elites in next generation
-            _elite_indices = heapq.nsmallest(num_elites, top_models)
-            elite_indices = set(i for _, i in _elite_indices)
-            elite = [models[i] for _, i in _elite_indices]
+            _sorted_pairs = heapq.nsmallest(len(top_models), top_models)
+            sorted_indices = [i for _, i in _sorted_pairs]
+
+            _elite_pairs = _sorted_pairs[:num_elites]
+            elite_indices = sorted_indices[:num_elites]
+            elite = [models[i] for i in elite_indices]
 
             if debug:
                 print("Elites:")
@@ -83,20 +93,27 @@ class GeneticRunner:
                     ",".join(
                         [
                             f"({-mi:.3f}, {models[i].hash()[2:8]})"
-                            for mi, i in _elite_indices
+                            for mi, i in _elite_pairs
                         ]
                     )
                 )
-
             if iter == iterations - 1:
-                return elite
+                return [
+                    models[i] for _, i in heapq.nsmallest(len(top_models), top_models)
+                ]
 
-            # Crossover random parents and mutate their offspring
-            parents = np.random.permutation(population)
+            # Roulette parent selection
+            _mi_scores = [-mi for mi, _ in _sorted_pairs]
+            parents = self.select(
+                np.array(_mi_scores)[np.argsort(sorted_indices)], n=num_children
+            )
+            np.random.shuffle(parents)
+
+            # Crossover parents and mutate their offspring
             children = []
             for parent1, parent2 in zip(
-                parents[: 2 * num_children : 2],
-                parents[1 : 1 + 2 * num_children : 2],
+                parents[::2],
+                parents[1::2],
             ):
                 children.extend(
                     self.mutate(child)

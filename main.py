@@ -1,7 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 
 from evolution.genetic.runner import GeneticRunner
-from evolution.genetic.operator import GeneticOperator
+from evolution.genetic.operators.mutation import MutationOperator
+from evolution.genetic.operators.crossover import CrossoverOperator
+from evolution.genetic.operators.selection import SelectionOperator
 from mi_estimation.decoding import DecodingEstimator
 from models.generator import ModelGenerator
 from models.model import PromoterModel
@@ -473,7 +475,7 @@ class Examples:
                 ]
             )
             for _ in range(10):
-                GeneticOperator.Mutation.add_noise(model)
+                MutationOperator.add_noise(model)
                 print(
                     [
                         rate_fn.rates
@@ -494,19 +496,20 @@ class Examples:
 
             data, _, _, _ = get_tf_data()
 
-            mutations = [
-                GeneticOperator.Mutation.add_noise,
-                GeneticOperator.Mutation.add_edge,
-                GeneticOperator.Mutation.edit_edge,
-                GeneticOperator.Mutation.flip_tf,
-            ]
             states = 3
             population, iterations = 40, 40
-            fname = f"best_models_new_{states}_{population}_{iterations}.dat"
+            fname = f"best_models_tournament_{states}_{population}_{iterations}.dat"
 
-            runner = GeneticRunner(
-                data, mutations, GeneticOperator.Crossover.one_point_triangular_row_swap
-            )
+            mutations = [
+                MutationOperator.add_noise,
+                MutationOperator.add_edge,
+                MutationOperator.edit_edge,
+                MutationOperator.flip_activity,
+            ]
+            crossover = CrossoverOperator.one_point_triangular_row_swap
+            select = SelectionOperator.tournament
+            runner = GeneticRunner(data, mutations, crossover, select)
+
             models = runner.run(
                 states=states,
                 population=population,
@@ -523,9 +526,9 @@ class Examples:
             import pickle
 
             data, _, _, _ = get_tf_data()
-            states = 3
+            states = 2
             population, iterations = 20, 20
-            fname = f"best_models_new_{states}_{population}_{iterations}.dat"
+            fname = f"best_models_v2_{states}_{population}_{iterations}.dat"
 
             with open(fname, "rb") as f:
                 models = pickle.load(f)
@@ -553,15 +556,14 @@ class Examples:
 
             data, _, _, _ = get_tf_data()
             mutations = [
-                GeneticOperator.Mutation.add_noise,
-                GeneticOperator.Mutation.add_edge,
-                GeneticOperator.Mutation.edit_edge,
-                GeneticOperator.Mutation.flip_activity,
+                MutationOperator.add_noise,
+                MutationOperator.add_edge,
+                MutationOperator.edit_edge,
+                MutationOperator.flip_activity,
             ]
-
-            runner = GeneticRunner(
-                data, mutations, GeneticOperator.Crossover.one_point_row_swap
-            )
+            crossover = CrossoverOperator.one_point_triangular_row_swap
+            select = SelectionOperator.tournament
+            runner = GeneticRunner(data, mutations, crossover, select)
 
             # Model1 can change hash but model2 must remain the same
             children = runner.crossover(model1, model2, False, True)
@@ -581,15 +583,14 @@ class Examples:
 
             data, _, _, _ = get_tf_data()
             mutations = [
-                GeneticOperator.Mutation.add_noise,
-                GeneticOperator.Mutation.add_edge,
-                GeneticOperator.Mutation.edit_edge,
-                GeneticOperator.Mutation.flip_tf,
+                MutationOperator.add_noise,
+                MutationOperator.add_edge,
+                MutationOperator.edit_edge,
+                MutationOperator.flip_activity,
             ]
-
-            runner = GeneticRunner(
-                data, mutations, GeneticOperator.Crossover.one_point_triangular_row_swap
-            )
+            crossover = CrossoverOperator.one_point_triangular_row_swap
+            select = SelectionOperator.tournament
+            runner = GeneticRunner(data, mutations, crossover, select)
 
             models = [
                 ModelGenerator.get_random_model(10, p_edge=0.5),
@@ -637,7 +638,7 @@ class Examples:
 
 def main():
     # Examples.Benchmarking.trajectory()
-    Examples.Benchmarking.mi_estimation()
+    # Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
@@ -656,7 +657,7 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    # Examples.Evolution.evolutionary_run()
+    Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()
