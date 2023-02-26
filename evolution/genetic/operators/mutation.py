@@ -112,9 +112,9 @@ class MutationOperator:
     def add_edge(
         model: PromoterModel, p: float = 0.2, reversible: bool = True
     ) -> PromoterModel:
-        MutationOperator.Mutation._modify_edge(model, p, False, reversible)
+        MutationOperator._modify_edge(model, p, False, reversible)
         return model
 
     def edit_edge(model: PromoterModel, p: float = 0.4) -> PromoterModel:
-        MutationOperator.Mutation._modify_edge(model, p, True, False)
+        MutationOperator._modify_edge(model, p, True, False)
         return model
