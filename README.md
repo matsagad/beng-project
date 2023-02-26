@@ -19,8 +19,11 @@ The project's structure is given as follows:
 ├── data                          # Experimental data
 ├── evolution
 │   └── genetic
-│       └── operator.py           # Genetic operators for promoter models 
-│       └── runner.py             # Evolutionary runner
+│       └── operators             
+│       │   └── crossover.py      # Crossover operators for promoter models
+│       │   └── mutation.py       # Mutation operators for promoter models 
+│       │   └── selection.py      # Selection operators for promoter models 
+│       └── runner.py             # Genetic algorithm runner
 ├── main.py                       # Main file
 ├── mi_estimation
 │   ├── decoding.py               # Decoding-based MI estimator
