@@ -135,7 +135,9 @@ class DecodingEstimator(MIEstimator):
             samples_per_class = len(states[0])
 
         rich_samples = rich_states[
-            np.random.choice(len(rich_states), samples_per_class, replace=False)
+            np.random.RandomState().choice(
+                len(rich_states), samples_per_class, replace=False
+            )
         ]
 
         return np.array([rich_samples] + states)
@@ -161,20 +163,32 @@ class DecodingEstimator(MIEstimator):
         """
         # Set-up data
         num_classes, num_samples, ts_duration = data.shape
-        Xs, ys = np.vstack(data), np.repeat(np.arange(num_classes), num_samples)
+        num_cells = num_samples // self.replicates
+        pre_process = self._flip_random if add_noise else lambda x: x
 
-        if add_noise:
-            Xs = self._flip_random(Xs)
+        Xs = np.split(
+            pre_process(np.hstack(data)).reshape((-1, ts_duration)),
+            num_cells,
+        )
+        ys = np.split(
+            np.tile(np.arange(num_classes), num_samples),
+            num_cells,
+        )
+        np_rs = np.random.RandomState()
 
         ## Split data into validation/training/testing ~ 15/70/15 split
         data_split = (0.15, 0.70, 0.15)
 
-        fst_split = data_split[0]
-        snd_split = data_split[2] / (data_split[1] + data_split[2])
+        _fst_split = data_split[0]
+        _snd_split = data_split[2] / (data_split[1] + data_split[2])
 
-        _X, X_val, _y, y_val = train_test_split(
-            Xs, ys, test_size=fst_split, stratify=ys
-        )
+        fst_split_count = int(_fst_split * num_cells)
+        snd_split_count = int(_snd_split * (num_cells - fst_split_count))
+
+        np_rs.shuffle(Xs)
+        _X_val, _X = np.split(Xs, [fst_split_count])
+        _y_val, _y = np.split(ys, [fst_split_count])
+        X_val, y_val = np.vstack(_X_val), np.hstack(_y_val)
 
         # Tune pipeline hyperparameters
         num_samples = len(y_val)
@@ -214,8 +228,13 @@ class DecodingEstimator(MIEstimator):
         # Find mutual information for each bootstrapped dataset
         mi = np.empty(n_bootstraps)
         for i in range(n_bootstraps):
-            X_train, X_test, y_train, y_test = train_test_split(
-                _X, _y, test_size=snd_split, stratify=_y
+            # Get random train-test partition
+            perm = np_rs.permutation(len(_y))
+            X_train, X_test = (
+                np.vstack(arr) for arr in np.split(_X[perm], [snd_split_count])
+            )
+            y_train, y_test = (
+                np.hstack(arr) for arr in np.split(_y[perm], [snd_split_count])
             )
 
             # Estimate mutual information
