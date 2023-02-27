@@ -57,9 +57,10 @@ class OneStepSimulator(StochasticSimulator):
         num_model_states = len(model.init_state)
 
         ## Randomly initialise state
+        np_rs = np.random.RandomState()
         init_cdf = np.cumsum(model.init_state)
         init_chosen = init_cdf.searchsorted(
-            np.random.uniform(size=(self.num_classes, self.batch_size, self.replicates))
+            np_rs.uniform(size=(self.num_classes, self.batch_size, self.replicates))
         )
         state = np.zeros(
             (self.num_classes, self.batch_size, self.replicates, num_model_states)
@@ -79,7 +80,7 @@ class OneStepSimulator(StochasticSimulator):
         states = [state]
 
         ## Sample random numbers in batches
-        rand_tensors = np.random.uniform(
+        rand_tensors = np_rs.uniform(
             size=(self.num_times, self.num_classes, self.batch_size, self.replicates)
         )
 
