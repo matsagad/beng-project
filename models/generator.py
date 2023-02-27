@@ -6,7 +6,11 @@ import random
 
 
 class ModelGenerator:
-    RATE_FNS = RateFunction.Function.__subclasses__()
+    # (Temporarily) restrict search to constant and linear rate functions
+    RATE_FNS = [
+        RateFunction.Constant,
+        RateFunction.Linear,
+    ]  # RateFunction.Function.__subclasses__()
     TF_COUNT = 5
 
     def get_random_rate_fn(low: float = -2, high: float = 2) -> RateFunction:
