@@ -154,7 +154,7 @@ class DecodingEstimator(MIEstimator):
         n_bootstraps: int = 25,
         c_interval: int = [0.25, 0.75],
         verbose: bool = False,
-        add_noise: bool = True,
+        add_noise: bool = False,
     ) -> float:
         """
         The MI estimation process is adapted from the method of Granados, Pietsch, et al,
@@ -273,6 +273,7 @@ class DecodingEstimator(MIEstimator):
         self,
         model: PromoterModel,
         trajectory: NDArray[Shape["Any, Any, Any, Any"], Float],
+        add_noise: bool = False,
     ) -> float:
         data = self._split_classes(model, trajectory)
-        return self._estimate(data)
+        return self._estimate(data, add_noise=add_noise)

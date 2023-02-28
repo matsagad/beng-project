@@ -15,7 +15,7 @@ class OneStepDecodingPipeline(Pipeline):
         self,
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tau: float = FIXED_TIME_DELTA,
-        realised: bool = False,
+        realised: bool = True,
         replicates: int = 1,
         origin: int = FIXED_ORIGIN,
         interval: int = FIXED_INTERVAL,
