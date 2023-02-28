@@ -14,7 +14,7 @@ class OneStepSimulator(StochasticSimulator):
         self,
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tau: float,
-        realised: bool = False,
+        realised: bool = True,
         replicates: int = 1,
     ):
         self.exogenous_data = exogenous_data
@@ -113,4 +113,4 @@ class OneStepSimulator(StochasticSimulator):
             states.append(state)
 
         states = np.array(states)
-        return np.array(states).reshape((*(states.shape[:-3]), -1, states.shape[-1]))
+        return states.reshape((*(states.shape[:2]), -1, states.shape[-1]))
