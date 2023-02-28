@@ -14,6 +14,8 @@ from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV, train_test_split
 from typing import Any, Dict
 import numpy as np
+import os
+import warnings
 
 
 class DecodingEstimator(MIEstimator):
@@ -92,6 +94,9 @@ class DecodingEstimator(MIEstimator):
 
         self.replicates = replicates
         self.variance_threshold = 0.05
+
+        # Hide runtime warnings from parallel backend jobs
+        os.environ["PYTHONWARNINGS"] = "ignore::RuntimeWarning"
 
     def _split_classes(
         self,
@@ -232,7 +237,7 @@ class DecodingEstimator(MIEstimator):
         )
 
         ## Grid search
-        grid_pipeline = GridSearchCV(
+        grid_pipeline = HalvingGridSearchCV(
             pipe,
             params,
             n_jobs=(-1 if self.parallel else 1),
@@ -243,7 +248,12 @@ class DecodingEstimator(MIEstimator):
             # error_score="raise",
             # scoring="f1_micro"
         )
-        grid_pipeline.fit(X_val, y_val)
+        ## Suppress runtime warnings (e.g. division by zero)
+        #  After all, these naturally tend to low MI scores as classifier performance
+        #  is poor - which is in line with our expectation for low variance features.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            grid_pipeline.fit(X_val, y_val)
         if verbose:
             print(grid_pipeline.best_estimator_)
         pipe.set_params(**grid_pipeline.best_params_)
@@ -261,8 +271,10 @@ class DecodingEstimator(MIEstimator):
             )
 
             # Estimate mutual information
-            pipe.fit(X_train, y_train)
-            y_pred = pipe.predict(X_test)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning)
+                pipe.fit(X_train, y_train)
+                y_pred = pipe.predict(X_test)
 
             p_y = 1 / num_classes
             p_yhat_given_y = confusion_matrix(y_test, y_pred, normalize="true")
