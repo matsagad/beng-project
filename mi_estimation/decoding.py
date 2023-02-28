@@ -149,6 +149,15 @@ class DecodingEstimator(MIEstimator):
         bit_mask = np.random.binomial(size=(Xs.shape), n=1, p=prob)
         return np.array(Xs != bit_mask, dtype=float)
 
+    def _smoothen(self, Xs: NDArray[Shape["Any, Any"], Float], window_size: int = 6):
+        smooth_Xs = np.zeros(Xs.shape)
+
+        for i in range(smooth_Xs.shape[1]):
+            smooth_Xs[:, i] = np.int8(
+                np.average(Xs[:, i : i + window_size], axis=1) >= 0.5
+            )
+        return smooth_Xs
+
     def _estimate(
         self,
         data: NDArray[Shape["Any, Any, Any"], Float],
@@ -156,6 +165,7 @@ class DecodingEstimator(MIEstimator):
         c_interval: int = [0.25, 0.75],
         verbose: bool = False,
         add_noise: bool = False,
+        smoothen: bool = False,
     ) -> float:
         """
         The MI estimation process is adapted from the method of Granados, Pietsch, et al,
@@ -165,7 +175,10 @@ class DecodingEstimator(MIEstimator):
         # Set-up data
         num_classes, num_samples, ts_duration = data.shape
         num_cells = num_samples // self.replicates
-        pre_process = self._flip_random if add_noise else lambda x: x
+
+        _add_noise = self._flip_random if add_noise else lambda x: x
+        _smoothen = self._smoothen if smoothen else lambda x: x
+        pre_process = lambda x: _add_noise(_smoothen(x))
 
         Xs = np.split(
             pre_process(np.hstack(data)).reshape((-1, ts_duration)),
@@ -284,6 +297,7 @@ class DecodingEstimator(MIEstimator):
         model: PromoterModel,
         trajectory: NDArray[Shape["Any, Any, Any, Any"], Float],
         add_noise: bool = False,
+        smoothen: bool = False,
     ) -> float:
         data = self._split_classes(model, trajectory)
-        return self._estimate(data, add_noise=add_noise)
+        return self._estimate(data, add_noise=add_noise, smoothen=smoothen)
