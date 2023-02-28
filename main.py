@@ -150,6 +150,13 @@ class Examples:
             model = PromoterModel(
                 [[None, RF.Linear([10], [4])], [RF.Linear([4.7], [2]), None]]
             )
+            model = PromoterModel(
+                [
+                    [None, RF.Linear([1], [2]), RF.Linear([10], [4])],
+                    [RF.Linear([1], [2]), None, RF.Linear([10], [4])],
+                    [RF.Linear([1], [2]), RF.Linear([1], [2]), None],
+                ]
+            ).with_active_states([0, 1])
             replicates = 10
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
@@ -496,18 +503,20 @@ class Examples:
 
             data, _, _, _ = get_tf_data()
 
-            states = 3
-            population, iterations = 40, 40
-            fname = f"best_models_tournament_{states}_{population}_{iterations}.dat"
+            states = 5
+            population, iterations = 20, 20
+            fname = (
+                f"best_models_roulette_simple_{states}_{population}_{iterations}.dat"
+            )
 
             mutations = [
-                MutationOperator.add_noise,
-                MutationOperator.add_edge,
                 MutationOperator.edit_edge,
-                MutationOperator.flip_activity,
+                MutationOperator.add_edge,
+                MutationOperator.flip_tf,
+                MutationOperator.add_noise,
             ]
             crossover = CrossoverOperator.one_point_triangular_row_swap
-            select = SelectionOperator.tournament
+            select = SelectionOperator.roulette_wheel
             runner = GeneticRunner(data, mutations, crossover, select)
 
             models = runner.run(
@@ -515,7 +524,7 @@ class Examples:
                 population=population,
                 iterations=iterations,
                 verbose=True,
-                # debug=True
+                debug=True,
             )
 
             with open(fname, "wb") as f:
@@ -526,9 +535,11 @@ class Examples:
             import pickle
 
             data, _, _, _ = get_tf_data()
-            states = 2
-            population, iterations = 20, 20
-            fname = f"best_models_v2_{states}_{population}_{iterations}.dat"
+            states = 5
+            population, iterations = 40, 20
+            fname = (
+                f"best_models_tournament_simple_{states}_{population}_{iterations}.dat"
+            )
 
             with open(fname, "rb") as f:
                 models = pickle.load(f)
@@ -537,7 +548,7 @@ class Examples:
                 data, realised=True, replicates=10, classifier_name="naive_bayes"
             )
 
-            for i, model in enumerate(models):
+            for i, model in enumerate(models[:3]):
                 print(pip.evaluate(model))
                 model.visualise(
                     save=True,
@@ -559,7 +570,7 @@ class Examples:
                 MutationOperator.add_noise,
                 MutationOperator.add_edge,
                 MutationOperator.edit_edge,
-                MutationOperator.flip_activity,
+                MutationOperator.flip_tf,
             ]
             crossover = CrossoverOperator.one_point_triangular_row_swap
             select = SelectionOperator.tournament
@@ -586,7 +597,7 @@ class Examples:
                 MutationOperator.add_noise,
                 MutationOperator.add_edge,
                 MutationOperator.edit_edge,
-                MutationOperator.flip_activity,
+                MutationOperator.flip_tf,
             ]
             crossover = CrossoverOperator.one_point_triangular_row_swap
             select = SelectionOperator.tournament
@@ -608,6 +619,47 @@ class Examples:
             for _ in range(100):
                 model = runner.mutate(model)
                 ModelGenerator.is_valid(model, verbose=True)
+
+        def test_random_model_variance():
+            data, _, _, _ = get_tf_data()
+            pip = OneStepDecodingPipeline(
+                data, replicates=10, classifier_name="naive_bayes"
+            )
+            pip.set_parallel()
+
+            for _ in range(10):
+                model = ModelGenerator.get_random_model(2, p_edge=0.5)
+                trajectories = pip.simulator.simulate(model)
+                mi_score = pip.estimator.estimate(model, trajectories, add_noise=False)
+                print(mi_score)
+
+                # If close to boundary, then repeat to ensure no errors occur
+                if mi_score < 0.1:
+                    for _ in range(10):
+                        mi_score = pip.estimator.estimate(
+                            model, trajectories, add_noise=False
+                        )
+                        print(f"\t{mi_score}")
+
+        def test_hypothetical_perfect_model():
+            data, origin, _, _ = get_tf_data()
+            pip = OneStepDecodingPipeline(
+                data, replicates=10, classifier_name="svm"
+            )
+            pip.set_parallel()
+
+            dummy_model = PromoterModel(
+                [[None, RF.Constant([1])], [RF.Constant([1]), None]]
+            ).with_active_states([0])
+            dummy_traj = np.zeros(pip.simulator.simulate(dummy_model).shape)
+
+            # Rich state left as is. Note: first state is active state
+            dummy_traj[origin : origin + origin // 4, 0, :, 0] = 1
+            dummy_traj[origin : origin + 2 * origin // 4, 1, :, 0] = 1
+            dummy_traj[origin : origin + 3 * origin // 4, 2, :, 0] = 1
+
+            mi_score = pip.estimator.estimate(dummy_model, dummy_traj)
+            print(mi_score)
 
     class Data:
         def find_labels():
@@ -657,10 +709,12 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    Examples.Evolution.evolutionary_run()
+    # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()
+    # Examples.Evolution.test_random_model_variance()
+    Examples.Evolution.test_hypothetical_perfect_model()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
