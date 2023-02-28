@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import SGDClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import confusion_matrix
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV, train_test_split
@@ -23,8 +23,8 @@ class DecodingEstimator(MIEstimator):
             "classifier": svm.SVC(),
             "params": {
                 "kernel": ["rbf"],
-                "C": np.logspace(-3, 3, 12),
-                "gamma": np.logspace(-3, 3, 12),
+                "C": np.logspace(-3, 3, 8),
+                "gamma": np.logspace(-3, 3, 8),
             },
         },
         "decision_tree": {
@@ -91,6 +91,7 @@ class DecodingEstimator(MIEstimator):
         self.parallel = False
 
         self.replicates = replicates
+        self.variance_threshold = 0.05
 
     def _split_classes(
         self,
@@ -190,6 +191,15 @@ class DecodingEstimator(MIEstimator):
         _y_val, _y = np.split(ys, [fst_split_count])
         X_val, y_val = np.vstack(_X_val), np.hstack(_y_val)
 
+        ## If all features have a variance below a threshold, then prematurely return
+        #  an MI of zero. This avoids division by zero within PCA and other calculations
+        #  as well as speeding up estimation times.
+        if np.all(
+            np.var(MinMaxScaler((-1, 1)).fit_transform(X_val), axis=0)
+            < self.variance_threshold
+        ):
+            return 0.0
+
         # Tune pipeline hyperparameters
         num_samples = len(y_val)
         n_PCA_range = range(1, 1 + min(num_samples, ts_duration))
@@ -209,7 +219,7 @@ class DecodingEstimator(MIEstimator):
         )
 
         ## Grid search
-        grid_pipeline = HalvingGridSearchCV(
+        grid_pipeline = GridSearchCV(
             pipe,
             params,
             n_jobs=(-1 if self.parallel else 1),
