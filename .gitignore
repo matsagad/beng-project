@@ -1,6 +1,7 @@
 **/__pycache__
 **/.DS_Store
 **/.vscode
+**/**/*.dat
 cache/**/*.npy
 cache/**/*.json
 data/*.json
