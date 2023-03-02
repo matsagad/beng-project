@@ -60,6 +60,9 @@ class Examples:
                 ],
             ]
         ).with_active_states([0, 1, 2]),
+        "best_2": PromoterModel(
+            [[None, RF.Linear([10], [4])], [RF.Linear([4.7], [2]), None]]
+        ),
     }
 
     class UsingThePipeline:
@@ -236,12 +239,12 @@ class Examples:
 
         def mi_estimation():
             data, origin, time_delta, _ = get_tf_data()
-            model = Examples.models[2]
+            model = Examples.models["best_2"]
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
             est.parallel = True
 
-            for replicates in [1, 5, 10, 50, 100, 200]:
+            for replicates in [1, 5, 10, 50, 100]:
                 # Simulate
                 sim = OneStepSimulator(
                     data, tau=time_delta, realised=True, replicates=replicates
@@ -504,10 +507,8 @@ class Examples:
             data, _, _, _ = get_tf_data()
 
             states = 5
-            population, iterations = 20, 20
-            fname = (
-                f"best_models_roulette_simple_{states}_{population}_{iterations}.dat"
-            )
+            population, iterations = 40, 40
+            fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
 
             mutations = [
                 MutationOperator.edit_edge,
@@ -535,11 +536,9 @@ class Examples:
             import pickle
 
             data, _, _, _ = get_tf_data()
-            states = 5
-            population, iterations = 40, 20
-            fname = (
-                f"best_models_tournament_simple_{states}_{population}_{iterations}.dat"
-            )
+            states = 3
+            population, iterations = 20, 20
+            fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
 
             with open(fname, "rb") as f:
                 models = pickle.load(f)
@@ -547,6 +546,7 @@ class Examples:
             pip = OneStepDecodingPipeline(
                 data, realised=True, replicates=10, classifier_name="naive_bayes"
             )
+            pip.set_parallel()
 
             for i, model in enumerate(models[:3]):
                 print(pip.evaluate(model))
@@ -604,8 +604,8 @@ class Examples:
             runner = GeneticRunner(data, mutations, crossover, select)
 
             models = [
-                ModelGenerator.get_random_model(10, p_edge=0.5),
-                ModelGenerator.get_random_model(10, p_edge=0.5),
+                ModelGenerator.get_random_model(10, p_edge=0.1),
+                ModelGenerator.get_random_model(10, p_edge=0.1),
             ]
 
             # Crossover maintains reversibility
@@ -644,7 +644,7 @@ class Examples:
         def test_hypothetical_perfect_model():
             data, origin, _, _ = get_tf_data()
             pip = OneStepDecodingPipeline(
-                data, replicates=10, classifier_name="svm"
+                data, replicates=10, classifier_name="naive_bayes"
             )
             pip.set_parallel()
 
