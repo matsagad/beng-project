@@ -12,6 +12,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import confusion_matrix
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV, train_test_split
+from sklearn.neural_network import MLPClassifier
 from typing import Any, Dict
 import numpy as np
 import os
@@ -62,6 +63,16 @@ class DecodingEstimator(MIEstimator):
                 "alpha": [1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3],
                 "loss": ["hinge", "log_loss", "modified_huber"],
                 "penalty": ["l2"],
+            },
+        },
+        "mlp": {
+            "classifier": MLPClassifier(max_iter=1000),
+            "params": {
+                "hidden_layer_sizes": [(32, 32, 32), (32, 64, 32), (128,)],
+                "activation": ["tanh", "relu"],
+                "solver": ["sgd", "adam"],
+                "alpha": np.logspace(-4, -1, 10),
+                "learning_rate": ["constant", "adaptive"],
             },
         },
     }
