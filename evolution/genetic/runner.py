@@ -88,9 +88,9 @@ class GeneticRunner:
             elite = [models[i] for i in elite_indices]
 
             if debug:
-                print("Elites:")
                 print(
-                    ",".join(
+                    "Elites: "
+                    + ", ".join(
                         [
                             f"({-mi:.3f}, {models[i].hash()[2:8]})"
                             for mi, i in _elite_pairs
@@ -102,7 +102,7 @@ class GeneticRunner:
                     models[i] for _, i in heapq.nsmallest(len(top_models), top_models)
                 ]
 
-            # Roulette parent selection
+            # Use selection operator to choose parents for next generation
             _mi_scores = [-mi for mi, _ in _sorted_pairs]
             parents = self.select(
                 np.array(_mi_scores)[np.argsort(sorted_indices)], n=num_children
@@ -127,5 +127,4 @@ class GeneticRunner:
 
             models = elite + children
             if debug:
-                print("Next generation:")
-                print(",".join([model.hash()[2:8] for model in models]))
+                print(f"Mean Population MI: {np.average(_mi_scores):.3f}")
