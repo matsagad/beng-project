@@ -17,34 +17,38 @@ The project's structure is given as follows:
 ├── archive                       # Archive of my previous attempt
 ├── cache                         # Cached JSONs, numpy arrays, and images
 ├── data                          # Experimental data
-├── evolution
-│   └── genetic
-│       └── operators             
-│       │   └── crossover.py      # Crossover operators for promoter models
-│       │   └── mutation.py       # Mutation operators for promoter models 
+├── /evolution
+│   └── /genetic
+│       ├── /operators             
+│       │   ├── crossover.py      # Crossover operators for promoter models
+│       │   ├── mutation.py       # Mutation operators for promoter models 
 │       │   └── selection.py      # Selection operators for promoter models 
 │       └── runner.py             # Genetic algorithm runner
+├── /jobs
+│   ├── job.py                    # Abstract class for jobs/tasks to be run
+│   └── common_jobs.py            # Classes for common job types
 ├── main.py                       # Main file
-├── mi_estimation
+├── /mi_estimation
 │   ├── decoding.py               # Decoding-based MI estimator
 │   └── estimator.py              # Abstract class for MI estimators
-├── models
+├── /models
 │   ├── generator.py              # Random model generator
 │   ├── model.py                  # Promoter model class
 │   ├── preset.py                 # Set of familiar models
-│   └── rates
+│   └── /rates
 │       └── function.py           # Rate functions taking exogenous input
-├── optimisation
+├── /optimisation
 │   └── grid_search.py            # Grid search on simple models
 │   └── particle_swarm.py         # Particle swarm on general models
-├── pipeline
+├── /pipeline
 │   ├── one_step_decoding.py      # One-step + Decoding pipeline
 │   └── pipeline.py               # Pipeline class
 ├── requirements.txt              # Package dependencies list
-├── ssa
+├── run_job.py                    # Entrypoint for running a job
+├── /ssa
 │   ├── one_step.py               # One-step Master equation simulator
 │   └── simulator.py              # Abstract class for trajectory simulators
-└── utils
+└── /utils
     └── process.py                # Processing of experimental data
 ```
 
