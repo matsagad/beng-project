@@ -22,11 +22,7 @@ def get_tf_data():
     args = sys.argv[1:]
     if not args:
         return get_data()
-    path_to_cache = args[0]
-    return get_data(
-        f_data=f"{path_to_cache}/data_tf.npy",
-        f_params=f"{path_to_cache}/params_tf.json",
-    )
+    return get_data(cache_folder=args[0])
 
 
 class Examples:

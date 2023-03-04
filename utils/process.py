@@ -18,30 +18,34 @@ def _normalise(data):
 
 
 def get_tf_data(
-    f_data: str = "cache/data_tf.npy",
-    f_params: str = "cache/params_tf.json",
+    f_data: str = "data_tf.npy",
+    f_params: str = "params_tf.json",
     normalise: bool = True,
-    folder: str = "data/",
+    cache_folder: str = "cache",
+    data_folder: str = "data",
 ) -> Tuple[NDArray[Shape["Any, Any, Any, Any"], Float], int, int]:
     """
     Yields data from the stress type experiments.
     Returns a 4D array with dimensions: # environments, # TFs, batch size, # times.
     """
     # Load from cache if exists
-    if os.path.isfile(f_data) and os.path.isfile(f_params):
+    path_to_data = f"{cache_folder}/{f_data}"
+    path_to_params = f"{cache_folder}/{f_params}"
+
+    if os.path.isfile(path_to_data) and os.path.isfile(path_to_params):
         print("Using cached data!")
 
-        ts = np.load(f_data)
+        ts = np.load(path_to_data)
         ts = _normalise(ts) if normalise else ts
 
-        with open(f_params) as f:
+        with open(path_to_params) as f:
             params = json.load(f)
 
         return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
 
     # Check if primary data sources exist
-    NUCLEAR_MARKER_EXPTS = folder + "figS1_nuclear_marker_expts.json"
-    STRESS_TYPE_EXPTS = folder + "fig2_stress_type_expts.json"
+    NUCLEAR_MARKER_EXPTS = f"{data_folder}/figS1_nuclear_marker_expts.json"
+    STRESS_TYPE_EXPTS = f"{data_folder}/fig2_stress_type_expts.json"
 
     for experiment in (NUCLEAR_MARKER_EXPTS, STRESS_TYPE_EXPTS):
         if not os.path.isfile(experiment):
