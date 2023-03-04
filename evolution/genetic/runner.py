@@ -4,10 +4,10 @@ from models.generator import ModelGenerator
 from models.model import PromoterModel
 from nptyping import NDArray
 from pipeline.one_step_decoding import OneStepDecodingPipeline
-from pipeline.pipeline import Pipeline
 from typing import Callable, List, Tuple
 import heapq
 import numpy as np
+import time
 
 
 class GeneticRunner:
@@ -32,7 +32,7 @@ class GeneticRunner:
 
     def evaluate_wrapper(model: PromoterModel, index: int) -> Tuple[int, float]:
         return GeneticRunner.mp_instance._evaluate(model, index)
-    
+
     def _evaluate(self, model: PromoterModel, index: int) -> Tuple[int, float]:
         return index, self.pip.evaluate(model, verbose=False)
 
@@ -54,12 +54,16 @@ class GeneticRunner:
         best_mi = 0
         best_model_hash = ""
 
+        num_digits = len(str(iterations))
+
         # Use copy-on-write to avoid pickling entire exogenous data per process.
         # (Can do this as long as child processes don't modify the instance)
         GeneticRunner.mp_instance = self
 
         for iter in range(iterations):
             top_models = []
+
+            start = time.time()
 
             # Find fitness of each model
             with ProcessPoolExecutor(
@@ -84,8 +88,8 @@ class GeneticRunner:
 
             if verbose:
                 print(
-                    f"({(iter + 1):02}/{iterations}):\t Best: {best_mi:.3f} ({best_model_hash})"
-                    + f"\t Current: {curr_best_mi:.3f} ({curr_best_model_hash})"
+                    f"({str(iter + 1).zfill(num_digits)}/{iterations}):\t\033[1m Best: {best_mi:.3f} ({best_model_hash})"
+                    + f"\t Current: {curr_best_mi:.3f} ({curr_best_model_hash})\033[0m"
                 )
 
             # Keep elites in next generation
@@ -98,7 +102,7 @@ class GeneticRunner:
 
             if debug:
                 print(
-                    "Elites: "
+                    "\tTop Elites: "
                     + ", ".join(
                         [
                             f"({-mi:.3f}, {models[i].hash()[2:8]})"
@@ -136,4 +140,5 @@ class GeneticRunner:
 
             models = elite + children
             if debug:
-                print(f"Mean Population MI: {np.average(_mi_scores):.3f}")
+                print(f"\tMean Population MI: {np.average(_mi_scores):.3f}")
+                print(f"\tIteration Duration: {(time.time() - start):.3f}s")
