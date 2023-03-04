@@ -1,5 +1,4 @@
 from concurrent.futures import ThreadPoolExecutor
-
 from evolution.genetic.runner import GeneticRunner
 from evolution.genetic.operators.mutation import MutationOperator
 from evolution.genetic.operators.crossover import CrossoverOperator
@@ -12,10 +11,22 @@ from optimisation.grid_search import GridSearch
 from optimisation.particle_swarm import ParticleSwarm
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from ssa.one_step import OneStepSimulator
-from utils.process import get_tf_data
+from utils.process import get_tf_data as get_data
 import json
 import numpy as np
+import sys
 import time
+
+
+def get_tf_data():
+    args = sys.argv[1:]
+    if not args:
+        return get_data()
+    path_to_cache = args[0]
+    return get_data(
+        f_data=f"{path_to_cache}/data_tf.npy",
+        f_params=f"{path_to_cache}/params_tf.json",
+    )
 
 
 class Examples:
