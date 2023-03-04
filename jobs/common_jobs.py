@@ -16,6 +16,7 @@ class GeneticAlgorithmJob(Job):
             "iterations": 10,
             "reversible": True,
             "one_active_state": True,
+            "n_processors": 1,
             "cache_folder": "cache",
             "output_file": "models.dat",
         }
@@ -31,6 +32,7 @@ class GeneticAlgorithmJob(Job):
           iterations        Number of generations to run
           reversible        Bool for if reactions should be reversible (True)
           one_active_state  Bool for if models should have only one active state (True)
+          n_processors      Number of processors to parallelise model evaluation
           cache_folder      Path to cache folder where data may be cached
           output_file       Name of file to output model data
         """
@@ -65,6 +67,7 @@ class GeneticAlgorithmJob(Job):
             states=int(_args["states"]),
             population=int(_args["population"]),
             iterations=int(_args["iterations"]),
+            n_processors=int(_args["n_processors"]),
             model_generator_params=mg_params,
             verbose=True,
             debug=True,
