@@ -60,7 +60,7 @@ class ModelGenerator:
         return edges
 
     def get_random_model(
-        states: int, p_edge: float = 0.5, reversible: bool = True
+        states: int, p_edge: float = 0.5, reversible: bool = True, one_active_state: bool = True
     ) -> PromoterModel:
         # Find a random unfirom spanning tree
         ust = ModelGenerator._find_uniform_spanning_tree(states)
@@ -89,8 +89,11 @@ class ModelGenerator:
                 rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn()
 
         # Must only have one active state
-        active_states = np.zeros(states).astype(bool)
-        active_states[0] = True
+        if one_active_state:
+            active_states = np.zeros(states).astype(bool)
+            active_states[0] = True
+        else:
+            active_states = np.random.binomial(1, 0.5, states)
 
         return PromoterModel(rate_fn_matrix).with_active_states(active_states)
 

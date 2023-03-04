@@ -4,7 +4,7 @@ from models.generator import ModelGenerator
 from models.model import PromoterModel
 from nptyping import NDArray
 from pipeline.one_step_decoding import OneStepDecodingPipeline
-from typing import Callable, List, Tuple
+from typing import Callable, Dict, List, Tuple
 import heapq
 import numpy as np
 import time
@@ -43,11 +43,15 @@ class GeneticRunner:
         elite_ratio: float = 0.2,
         iterations: int = 10,
         n_processors: int = 10,
+        model_generator_params: Dict[str, any] = dict(),
         verbose: bool = True,
         debug: bool = False,
     ) -> None:
         # Randomly initialise random models with specified number of states
-        models = [ModelGenerator.get_random_model(states) for _ in range(population)]
+        models = [
+            ModelGenerator.get_random_model(states, **model_generator_params)
+            for _ in range(population)
+        ]
 
         num_elites = int(population * elite_ratio)
         num_children = population - num_elites
