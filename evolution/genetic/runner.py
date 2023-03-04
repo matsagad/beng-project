@@ -11,6 +11,8 @@ import numpy as np
 
 
 class GeneticRunner:
+    mp_instance = None
+
     def _compose(self, arg, fs):
         return reduce(lambda _arg, _f: _f(_arg), fs, arg)
 
@@ -28,8 +30,11 @@ class GeneticRunner:
         self.crossover = crossover
         self.select = select
 
-    def _evaluate(pip: Pipeline, model: PromoterModel, index: int) -> Tuple[int, float]:
-        return index, pip.evaluate(model, verbose=False)
+    def evaluate_wrapper(model: PromoterModel, index: int) -> Tuple[int, float]:
+        return GeneticRunner.mp_instance._evaluate(model, index)
+    
+    def _evaluate(self, model: PromoterModel, index: int) -> Tuple[int, float]:
+        return index, self.pip.evaluate(model, verbose=False)
 
     def run(
         self,
@@ -49,6 +54,10 @@ class GeneticRunner:
         best_mi = 0
         best_model_hash = ""
 
+        # Use copy-on-write to avoid pickling entire exogenous data per process.
+        # (Can do this as long as child processes don't modify the instance)
+        GeneticRunner.mp_instance = self
+
         for iter in range(iterations):
             top_models = []
 
@@ -59,7 +68,7 @@ class GeneticRunner:
                 futures = []
                 for i, model in enumerate(models):
                     futures.append(
-                        executor.submit(GeneticRunner._evaluate, self.pip, model, i)
+                        executor.submit(GeneticRunner.evaluate_wrapper, model, i)
                     )
 
                 for future in as_completed(futures):
