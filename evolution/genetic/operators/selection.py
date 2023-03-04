@@ -4,9 +4,18 @@ from typing import List
 
 class SelectionOperator:
     def roulette_wheel(
-        fitness_scores: List[float], n: int, replace: bool = False
+        fitness_scores: List[float],
+        n: int,
+        replace: bool = False,
+        epsilon: float = 0.01,
     ) -> List[int]:
-        norm_fitness_scores = np.array(fitness_scores) / sum(fitness_scores)
+        # When fitness is zero, the probability distribution may only allow
+        # selection of fewer individuals than required when replace = False.
+        # To solve this, we add a small epsilon. We choose 0.01 to be small
+        # enough (0.5% relative to max score of 2).
+        
+        perturbed_fitness = np.array(fitness_scores) + epsilon
+        norm_fitness_scores = perturbed_fitness / sum(perturbed_fitness)
         return np.random.choice(
             len(fitness_scores), n, p=norm_fitness_scores, replace=replace
         )
