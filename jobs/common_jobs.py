@@ -15,7 +15,7 @@ class GeneticAlgorithmJob(Job):
             "states": 2,
             "population": 10,
             "iterations": 10,
-            "fix_states": False,
+            "fixed_states": False,
             "reversible": True,
             "one_active_state": True,
             "n_processors": 1,
@@ -32,7 +32,7 @@ class GeneticAlgorithmJob(Job):
           states            Number of states the model population starts with
           population        Number of models to consider in each generation
           iterations        Number of generations to run
-          fix_states        Flag for if states should be fixed (False)
+          fixed_states      Flag for if states should be fixed (False)
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
           n_processors      Number of processors to parallelise model evaluation
