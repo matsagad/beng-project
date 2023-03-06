@@ -499,6 +499,33 @@ class Examples:
             plt.legend(loc="upper right")
             plt.savefig(f"{Examples.CACHE_FOLDER}/mi_distribution.png", dpi=200)
 
+        def genetic_multiprocessing_overhead():
+            data, _, _, _ = get_tf_data()
+
+            states = 4
+            population, iterations = 10, 100
+
+            mutations = [
+                MutationOperator.edit_edge,
+                MutationOperator.add_edge,
+                MutationOperator.flip_tf,
+                MutationOperator.add_noise,
+            ]
+            crossover = CrossoverOperator.one_point_triangular_row_swap
+            select = SelectionOperator.roulette_wheel
+            runner = GeneticRunner(data, mutations, crossover, select)
+
+            start = time.time()
+            models = runner.run(
+                states=states,
+                population=population,
+                iterations=iterations,
+                model_generator_params={"one_active_state": False},
+                verbose=True,
+                debug=True,
+            )
+            print(time.time() - start)
+
     class Optimisation:
         def grid_search():
             data, _, _, tf_names = get_tf_data()
