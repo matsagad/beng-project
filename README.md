@@ -8,6 +8,7 @@ A repository for code used in my WIP undergraduate thesis.
 2. [Usage](#usage)
    1. [Installing Dependencies](#installing-dependencies)
    2. [Simulations, Visualisations, and Benchmarking](#simulations-visualisations-and-benchmarking)
+   3. [Running Jobs](#running-jobs)
 
 ## Structure
 
@@ -26,7 +27,7 @@ The project's structure is given as follows:
 │       └── runner.py             # Genetic algorithm runner
 ├── /jobs
 │   ├── job.py                    # Abstract class for jobs/tasks to be run
-│   └── common_jobs.py            # Classes for common job types
+│   └── routine_jobs.py           # Routine jobs to run
 ├── main.py                       # Main file
 ├── /mi_estimation
 │   ├── decoding.py               # Decoding-based MI estimator
@@ -72,3 +73,7 @@ pip3 install -r requirements.txt
 ### Simulations, Visualisations, and Benchmarking
 
 The `main.py` file contains examples which can be run by specifying the function under `main`. In the future, a dedicated `/examples` folder with proper documentation will be added.
+
+### Running Jobs
+
+The `/jobs` folder contains a high-level abstraction for running common tasks in parallel on job-scheduling platforms (e.g. for an HPC cluster). Jobs are run through `run_job.py`. More information on the expected command-line arguments can be found in `/jobs/README.md`.
