@@ -22,6 +22,7 @@ class GeneticRunner:
         mutations: List[Callable],
         crossover: Callable,
         select: Callable,
+        scale_fitness: Callable = lambda _, mi: mi,
     ):
         self.pip = OneStepDecodingPipeline(
             data, realised=True, replicates=10, classifier_name="naive_bayes"
@@ -29,12 +30,14 @@ class GeneticRunner:
         self.mutate = lambda x: self._compose(x, mutations)
         self.crossover = crossover
         self.select = select
+        self.scale_fitness = scale_fitness
 
     def evaluate_wrapper(model: PromoterModel, index: int) -> Tuple[int, float]:
         return GeneticRunner.mp_instance._evaluate(model, index)
 
-    def _evaluate(self, model: PromoterModel, index: int) -> Tuple[int, float]:
-        return index, self.pip.evaluate(model, verbose=False)
+    def _evaluate(self, model: PromoterModel, index: int) -> Tuple[int, float, float]:
+        mi = self.pip.evaluate(model, verbose=False)
+        return index, self.scale_fitness(model, mi), mi
 
     def run(
         self,
@@ -55,8 +58,7 @@ class GeneticRunner:
 
         num_elites = int(population * elite_ratio)
         num_children = population - num_elites
-        best_mi = 0
-        best_model_hash = ""
+        best_stats = {"fitness": 0, "mi": 0, "num_states": 0, "hash": ""}
 
         num_digits = len(str(iterations))
 
@@ -80,27 +82,37 @@ class GeneticRunner:
                     )
 
                 for future in as_completed(futures):
-                    i, mi = future.result()
-                    heapq.heappush(top_models, (-mi, i))
+                    i, fitness, mi = future.result()
+                    heapq.heappush(top_models, (-fitness, mi, i))
 
-            curr_best_mi = -top_models[0][0]
-            curr_best_model_hash = models[top_models[0][1]].hash()[2:8]
+            curr_best_model = models[top_models[0][2]]
+            curr_stats = {
+                "fitness": -top_models[0][0],
+                "mi": top_models[0][1],
+                "num_states": curr_best_model.num_states,
+                "hash": curr_best_model.hash()[2:8],
+            }
 
-            if curr_best_mi > best_mi:
-                best_mi = curr_best_mi
-                best_model_hash = curr_best_model_hash
+            if curr_stats["fitness"] > best_stats["fitness"]:
+                best_stats = curr_stats
 
             if verbose:
                 print(
-                    f"({str(iter + 1).zfill(num_digits)}/{iterations}):\t\033[1m Best: {best_mi:.3f} ({best_model_hash})"
-                    + f"\t Current: {curr_best_mi:.3f} ({curr_best_model_hash})\033[0m"
+                    f"({str(iter + 1).zfill(num_digits)}/{iterations}):\t\033[1m "
+                    + "\t ".join(
+                        f"{label}: {stats['fitness']:.3f} ({stats['mi']:.3f}, {stats['num_states']}, {stats['hash']})"
+                        for label, stats in zip(
+                            ("Best", "Current"), (best_stats, curr_stats)
+                        )
+                    )
+                    + "\033[0m"
                 )
 
             # Keep elites in next generation
-            _sorted_pairs = heapq.nsmallest(len(top_models), top_models)
-            sorted_indices = [i for _, i in _sorted_pairs]
+            _sorted_tuples = heapq.nsmallest(len(top_models), top_models)
+            sorted_indices = [i for _, _, i in _sorted_tuples]
 
-            _elite_pairs = _sorted_pairs[:num_elites]
+            _elite_tuples = _sorted_tuples[:num_elites]
             elite_indices = sorted_indices[:num_elites]
             elite = [models[i] for i in elite_indices]
 
@@ -109,20 +121,23 @@ class GeneticRunner:
                     "\tTop Elites: "
                     + ", ".join(
                         [
-                            f"({-mi:.3f}, {models[i].hash()[2:8]})"
-                            for mi, i in _elite_pairs
+                            f"({-fitness:.3f}, {mi:.3f}, {models[i].num_states}, {models[i].hash()[2:8]})"
+                            for fitness, mi, i in _elite_tuples
                         ]
                     )
                 )
             if iter == iterations - 1:
                 return [
-                    models[i] for _, i in heapq.nsmallest(len(top_models), top_models)
+                    models[i]
+                    for _, _, i in heapq.nsmallest(len(top_models), top_models)
                 ]
 
             # Use selection operator to choose parents for next generation
-            _mi_scores = [-mi for mi, _ in _sorted_pairs]
+            _fitness_scores = [-fitness for fitness, _, _ in _sorted_tuples]
+            _mi_scores = [mi for _, mi, _ in _sorted_tuples]
+
             parents = self.select(
-                np.array(_mi_scores)[np.argsort(sorted_indices)], n=num_children
+                np.array(_fitness_scores)[np.argsort(sorted_indices)], n=num_children
             )
             np.random.shuffle(parents)
 
@@ -144,5 +159,6 @@ class GeneticRunner:
 
             models = elite + children
             if debug:
+                print(f"\tMean Population Fitness: {np.average(_fitness_scores):.3f}")
                 print(f"\tMean Population MI: {np.average(_mi_scores):.3f}")
                 print(f"\tIteration Duration: {(time.time() - start):.3f}s")
