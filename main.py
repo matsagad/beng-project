@@ -216,6 +216,36 @@ class Examples:
 
             plt.savefig(f"{Examples.CACHE_FOLDER}/binary_vis_best2.png", dpi=200)
 
+        def visualise_crossover():
+            import matplotlib.pyplot as plt
+
+            model1 = ModelGenerator.get_random_model(10, p_edge=0.1)
+            model2 = ModelGenerator.get_random_model(3, p_edge=0.1)
+            crossover = CrossoverOperator.subgraph_swap
+
+            print("beginning swap")
+            model_pairs = ((model1, model2), crossover(model1, model2))
+            print("finished swap")
+
+            fig, axes = plt.subplots(2, 2, sharey=True, sharex=True, figsize=(6, 6))
+            fig.tight_layout()
+
+            for row, model_pair in zip(axes, model_pairs):
+                for ax, model in zip(row, model_pair):
+                    model.visualise(target_ax=ax)
+
+            for ax, label in zip(axes[:, 0], ("Parents", "Children")):
+                ax.set_ylabel(label)
+
+            plt.subplots_adjust(wspace=0, hspace=0)
+
+            plt.savefig(
+                f"{Examples.CACHE_FOLDER}/crossover_vis.png",
+                dpi=200,
+                bbox_inches="tight",
+                pad_inches=0,
+            )
+
     class Benchmarking:
         def matrix_exponentials():
             data, _, _, _ = get_tf_data()
