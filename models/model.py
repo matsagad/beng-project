@@ -96,7 +96,7 @@ class PromoterModel:
         import matplotlib.pyplot as plt
         from matplotlib import rcParams
 
-        rcParams["text.usetex"] = True
+        # rcParams["text.usetex"] = True
 
         # Colors are from the "marumaru gum" palette by sukinapan!
         palette = ["#96beb1", "#fda9a9", "#f3eded"]
@@ -127,25 +127,27 @@ class PromoterModel:
         ]
         graph.add_edges([edge for edge, _ in edges])
         graph.es["label"] = [label for _, label in edges]
-        graph.es["label_size"] = 12
+        graph.es["label_size"] = 8
 
         visual_style = {
             # "edge_curved": 0,
             "background": None,
             "edge_label": graph.es["label"],
-            "edge_background": "white" if transparent else palette[2],
+            # "edge_background": "white" if transparent else palette[2],
         }
 
+        if target_ax is not None:
+            if not transparent:
+                target_ax.set_facecolor(palette[2])
+            plot(graph, target=target_ax, **visual_style)
+            return
+        
         fig, ax = plt.subplots()
         ax.set_aspect(1)
 
         if not transparent:
             ax.set_facecolor(palette[2])
             fig.set_facecolor(palette[2])
-
-        if target_ax is not None:
-            plot(graph, target=target_ax, **visual_style)
-            return
 
         plot(graph, target=ax, **visual_style)
 
