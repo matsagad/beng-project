@@ -246,6 +246,103 @@ class Examples:
                 pad_inches=0,
             )
 
+        def visualise_crossover_chart():
+            import matplotlib.pyplot as plt
+
+            rows, cols = 5, 5
+            crossover = CrossoverOperator.subgraph_swap
+
+            scale = 8 / max(rows, cols)
+            fig = plt.figure(figsize=(scale * cols, scale * rows))
+
+            subfigs = fig.subfigures(
+                rows,
+                cols,
+                height_ratios=np.ones(rows),
+                width_ratios=np.ones(cols),
+            )
+
+            for dim in (rows, cols):
+                if dim == 1:
+                    subfigs = [subfigs]
+
+            for row in subfigs:
+                for subfig in row:
+                    axes = subfig.subplots(
+                        2,
+                        2,
+                        sharey=True,
+                        sharex=True,
+                    )
+                    parents = [
+                        ModelGenerator.get_random_model(states=states, p_edge=p_edge)
+                        for states, p_edge in zip(
+                            2 + np.random.choice(8, size=2), np.random.uniform(size=2)
+                        )
+                    ]
+
+                    models = (parents, crossover(*parents))
+
+                    for model_pair, subrow in zip(models, axes):
+                        for model, ax in zip(model_pair, subrow):
+                            ax.set_aspect("equal")
+                            model.visualise(target_ax=ax, small_size=True)
+                            ax.axis("off")
+
+                    for ax, label in zip(axes[:, 0], ("Parents", "Children")):
+                        ax.set_ylabel(label)
+                    parents = models[1]
+
+                    subfig.subplots_adjust(wspace=0, hspace=0)
+
+            plt.axis("off")
+            print("saving figure...")
+            plt.savefig(
+                f"{Examples.CACHE_FOLDER}/crossover_chart.png",
+                dpi=200,
+                bbox_inches="tight",
+                pad_inches=0.1,
+            )
+
+        def visualise_crossbreeding():
+            import matplotlib.pyplot as plt
+
+            iterations = 10
+            crossover = CrossoverOperator.one_point_triangular_row_swap
+
+            scale = 8 / iterations
+
+            fig, axes = plt.subplots(
+                nrows=2,
+                ncols=iterations,
+                sharex=True,
+                sharey=True,
+                figsize=(scale * iterations, scale),
+            )
+            fig.tight_layout()
+
+            models = [
+                ModelGenerator.get_random_model(states=states, p_edge=p_edge)
+                for states, p_edge in zip((5, 5), (0.1, 0.5))
+            ]
+
+            for col in axes.T:
+                for model, ax in zip(models, col):
+                    ax.set_aspect("equal")
+                    ax.axis("off")
+                    model.visualise(target_ax=ax, small_size=True)
+
+                models = crossover(*models)
+
+            plt.axis("off")
+            print("saving figure...")
+            plt.savefig(
+                f"{Examples.CACHE_FOLDER}/crossbreeding.png",
+                dpi=200,
+                bbox_inches="tight",
+                pad_inches=0.1,
+            )
+
     class Benchmarking:
         def matrix_exponentials():
             data, _, _, _ = get_tf_data()
@@ -277,6 +374,7 @@ class Examples:
         def mi_estimation():
             data, origin, time_delta, _ = get_tf_data()
             model = Examples.models["best_2"]
+
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
             est.parallel = True
@@ -773,6 +871,8 @@ def main():
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.PlottingVisuals.visualise_crossover()
+    # Examples.PlottingVisuals.visualise_crossover_chart()
+    Examples.PlottingVisuals.visualise_crossbreeding()
 
     # Examples.UsingThePipeline.pipeline_example()
 
@@ -781,7 +881,7 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    Examples.Evolution.evolutionary_run()
+    # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()

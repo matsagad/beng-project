@@ -92,6 +92,7 @@ class PromoterModel:
         save: bool = False,
         fname: str = "cache/model.png",
         transparent: bool = False,
+        small_size: bool = False,
         target_ax: any = None,
     ) -> None:
         from igraph import Graph, plot
@@ -134,8 +135,11 @@ class PromoterModel:
         visual_style = {
             # "edge_curved": 0,
             "background": None,
-            "edge_label": graph.es["label"],
-            # "edge_background": "white" if transparent else palette[2],
+            "edge_label": None if small_size else graph.es["label"],
+            "edge_width": 1,
+            "edge_background": "white" if transparent else palette[2],
+            "vertex_label": None if small_size else graph.vs["label"],
+            "bbox": (100, 100),
         }
 
         if target_ax is not None:
@@ -143,7 +147,7 @@ class PromoterModel:
                 target_ax.set_facecolor(palette[2])
             plot(graph, target=target_ax, **visual_style)
             return
-        
+
         fig, ax = plt.subplots()
         ax.set_aspect(1)
 
