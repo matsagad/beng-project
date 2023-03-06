@@ -580,9 +580,13 @@ class Examples:
                 MutationOperator.flip_tf,
                 MutationOperator.add_noise,
             ]
-            crossover = CrossoverOperator.one_point_triangular_row_swap
+            _MAX_MI, arb_k = 2, 6
+            scale_fitness = lambda model, mi: max(
+                mi - _MAX_MI / (1 + arb_k * np.exp(arb_k - model.num_states)), 0
+            )
+            crossover = CrossoverOperator.subgraph_swap
             select = SelectionOperator.roulette_wheel
-            runner = GeneticRunner(data, mutations, crossover, select)
+            runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
 
             models = runner.run(
                 states=states,
@@ -777,10 +781,10 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    # Examples.Evolution.evolutionary_run()
+    Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
-    Examples.Evolution.models_generated_are_valid()
+    # Examples.Evolution.models_generated_are_valid()
     # Examples.Evolution.test_random_model_variance()
     # Examples.Evolution.test_hypothetical_perfect_model()
 
