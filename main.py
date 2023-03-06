@@ -653,8 +653,7 @@ class Examples:
             # Random models are valid
             for _ in range(100):
                 model = ModelGenerator.get_random_model(10, p_edge=0.5)
-                if not ModelGenerator.is_valid(model, verbose=True):
-                    print("not valid yoo")
+                ModelGenerator.is_valid(model, verbose=True)
 
             data, _, _, _ = get_tf_data()
             mutations = [
@@ -663,24 +662,26 @@ class Examples:
                 MutationOperator.edit_edge,
                 MutationOperator.flip_tf,
             ]
-            crossover = CrossoverOperator.one_point_triangular_row_swap
+            # crossover = CrossoverOperator.one_point_triangular_row_swap
+            crossover = CrossoverOperator.subgraph_swap
             select = SelectionOperator.tournament
             runner = GeneticRunner(data, mutations, crossover, select)
 
-            models = [
-                ModelGenerator.get_random_model(10, p_edge=0.1),
-                ModelGenerator.get_random_model(10, p_edge=0.1),
-            ]
-
             # Crossover maintains reversibility
-            for _ in range(100):
+            for _ in range(1000):
+                models = [
+                    ModelGenerator.get_random_model(states=states, p_edge=p_edge)
+                    for states, p_edge in zip(
+                        2 + np.random.choice(20, size=2), np.random.uniform(size=2)
+                    )
+                ]
                 models = runner.crossover(*models, False, False)
                 for model in models:
                     ModelGenerator.is_valid(model, verbose=True)
 
             # Mutations maintain reversibility
-            model = models[0]
-            for _ in range(100):
+            model = ModelGenerator.get_random_model(10, p_edge=0.1)
+            for _ in range(1000):
                 model = runner.mutate(model)
                 ModelGenerator.is_valid(model, verbose=True)
 
@@ -760,11 +761,14 @@ def main():
     # Examples.Benchmarking.mi_vs_interval()
     # Examples.Benchmarking.mi_vs_repeated_intervals()
     # Examples.Benchmarking.mi_distribution()
+    # Examples.Benchmarking.genetic_multiprocessing_overhead()
+    # Examples.Benchmarking.test_crossover()
 
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_activity()
+    # Examples.PlottingVisuals.visualise_crossover()
 
     # Examples.UsingThePipeline.pipeline_example()
 
@@ -776,9 +780,9 @@ def main():
     # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.crossover_no_side_effects()
-    # Examples.Evolution.models_generated_are_valid()
+    Examples.Evolution.models_generated_are_valid()
     # Examples.Evolution.test_random_model_variance()
-    Examples.Evolution.test_hypothetical_perfect_model()
+    # Examples.Evolution.test_hypothetical_perfect_model()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
