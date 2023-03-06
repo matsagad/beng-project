@@ -1,4 +1,4 @@
-from jobs.common_jobs import GeneticAlgorithmJob
+from jobs.routine_jobs import GeneticAlgorithmJob
 import sys
 
 jobs = {"genetic_algorithm": GeneticAlgorithmJob(verbose=True)}
