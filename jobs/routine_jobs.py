@@ -35,7 +35,7 @@ class GeneticAlgorithmJob(Job):
           population        Number of models to consider in each generation
           iterations        Number of generations to run
           fixed_states      Flag for if states should be fixed (False)
-          penalty_coeff     Parameter for penalising models - lower means
+          penalty_coeff     Parameter for penalising models
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
           n_processors      Number of processors to parallelise model evaluation
