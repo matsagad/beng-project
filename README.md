@@ -23,7 +23,8 @@ The project's structure is given as follows:
 │       ├── /operators             
 │       │   ├── crossover.py      # Crossover operators for promoter models
 │       │   ├── mutation.py       # Mutation operators for promoter models 
-│       │   └── selection.py      # Selection operators for promoter models 
+│       │   └── selection.py      # Selection operators for promoter models
+|       ├── penalty.py            # A collection of penalty functions
 │       └── runner.py             # Genetic algorithm runner
 ├── /jobs
 │   ├── job.py                    # Abstract class for jobs/tasks to be run
