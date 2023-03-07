@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from evolution.genetic.runner import GeneticRunner
+from evolution.genetic.penalty import ModelPenalty
 from evolution.genetic.operators.mutation import MutationOperator
 from evolution.genetic.operators.crossover import CrossoverOperator
 from evolution.genetic.operators.selection import SelectionOperator
@@ -678,10 +679,7 @@ class Examples:
                 MutationOperator.flip_tf,
                 MutationOperator.add_noise,
             ]
-            _MAX_MI, arb_k = 2, 6
-            scale_fitness = lambda model, mi: max(
-                mi - _MAX_MI / (1 + arb_k * np.exp(arb_k - model.num_states)), 0
-            )
+            scale_fitness = ModelPenalty.state_penalty(6)
             crossover = CrossoverOperator.subgraph_swap
             select = SelectionOperator.roulette_wheel
             runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
@@ -732,10 +730,7 @@ class Examples:
             population, iterations = 500, 500
             fname = "jobs/7157908_models.dat"
 
-            _MAX_MI, arb_k = 2, 6
-            scale_fitness = lambda model, mi: max(
-                mi - _MAX_MI / (1 + arb_k * np.exp(arb_k - model.num_states)), 0
-            )
+            scale_fitness = ModelPenalty.state_penalty(6)
 
             with open(fname, "rb") as f:
                 models = pickle.load(f)

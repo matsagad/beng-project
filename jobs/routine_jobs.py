@@ -3,6 +3,7 @@ from evolution.genetic.runner import GeneticRunner
 from evolution.genetic.operators.mutation import MutationOperator
 from evolution.genetic.operators.selection import SelectionOperator
 from evolution.genetic.operators.crossover import CrossoverOperator
+from evolution.genetic.penalty import ModelPenalty
 from utils.process import get_tf_data
 from jobs.job import Job
 import pickle
@@ -63,10 +64,7 @@ class GeneticAlgorithmJob(Job):
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
             # Penalise models with many states (regardless of edge count - a TODO)
-            _MAX_MI, arb_k = 2, float(_args["penalty_coeff"])
-            scale_fitness = lambda model, mi: max(
-                mi - _MAX_MI / (1 + arb_k * exp(arb_k - model.num_states)), 0
-            )
+            scale_fitness = ModelPenalty.state_penalty(float(_args["penalty_coeff"]))
         else:
             crossover = CrossoverOperator.one_point_triangular_row_swap
             scale_fitness = lambda _, mi: mi
