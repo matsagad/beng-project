@@ -16,6 +16,7 @@ class GeneticAlgorithmJob(Job):
             "population": 10,
             "iterations": 10,
             "fixed_states": False,
+            "penalty_coeff": 6,
             "reversible": True,
             "one_active_state": True,
             "n_processors": 1,
@@ -33,6 +34,7 @@ class GeneticAlgorithmJob(Job):
           population        Number of models to consider in each generation
           iterations        Number of generations to run
           fixed_states      Flag for if states should be fixed (False)
+          penalty_coeff     Parameter for penalising models - lower means
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
           n_processors      Number of processors to parallelise model evaluation
@@ -58,10 +60,10 @@ class GeneticAlgorithmJob(Job):
             MutationOperator.add_noise,
         ]
 
-        if bool(_args["fixed_states"]):
+        if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
             # Penalise models with many states (regardless of edge count - a TODO)
-            _MAX_MI, arb_k = 2, 6
+            _MAX_MI, arb_k = 2, float(_args["penalty_coeff"])
             scale_fitness = lambda model, mi: max(
                 mi - _MAX_MI / (1 + arb_k * exp(arb_k - model.num_states)), 0
             )
