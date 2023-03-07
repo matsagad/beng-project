@@ -25,6 +25,7 @@ class PromoterModel:
         # state, e.g. competing activator)
 
         self.num_states = len(rate_fn_matrix)
+        self.num_edges = sum(sum(map(bool, row)) for row in self.rate_fn_matrix)
 
     def with_init_state(
         self, init_state: NDArray[Shape["Any"], Int]
