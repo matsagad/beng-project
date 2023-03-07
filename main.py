@@ -721,6 +721,53 @@ class Examples:
                     fname=f"cache/evolution/{states}_{population}_{iterations}_{i}.png",
                 )
 
+        def show_best_models():
+            import matplotlib.pyplot as plt
+            import pickle
+
+            data, _, _, _ = get_tf_data()
+
+            num_models = 3
+            states = 10
+            population, iterations = 500, 500
+            fname = "jobs/7157908_models.dat"
+
+            _MAX_MI, arb_k = 2, 6
+            scale_fitness = lambda model, mi: max(
+                mi - _MAX_MI / (1 + arb_k * np.exp(arb_k - model.num_states)), 0
+            )
+
+            with open(fname, "rb") as f:
+                models = pickle.load(f)
+
+            fig, axes = plt.subplots(1, num_models, sharex=True, figsize=(12, 4))
+            fig.tight_layout()
+            fig.suptitle(
+                f"GA: {states}-states start, population: {population}, generations: {iterations}"
+            )
+
+            pip = OneStepDecodingPipeline(
+                data, realised=True, replicates=10, classifier_name="naive_bayes"
+            )
+            pip.set_parallel()
+
+            plt.subplots_adjust(wspace=0, hspace=0)
+
+            for model, ax in zip(models[:num_models], axes):
+                mi = pip.evaluate(model)
+                ax.set_xlabel(f"Fitness: {scale_fitness(model, mi):.3f}, MI: {mi:.3f}")
+                model.visualise(target_ax=ax, transparent=True)
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.set_aspect("equal")
+
+            plt.savefig(
+                f"{Examples.CACHE_FOLDER}/best_{num_models}_{states}_{population}_{iterations}.png",
+                dpi=200,
+                bbox_inches="tight",
+                pad_inches=0.25,
+            )
+
         def crossover_no_side_effects():
             model1 = PromoterModel(
                 [[None, RF.Constant([1.23])], [RF.Linear([2.345], [1]), None]]
@@ -872,7 +919,7 @@ def main():
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.PlottingVisuals.visualise_crossover()
     # Examples.PlottingVisuals.visualise_crossover_chart()
-    Examples.PlottingVisuals.visualise_crossbreeding()
+    # Examples.PlottingVisuals.visualise_crossbreeding()
 
     # Examples.UsingThePipeline.pipeline_example()
 
@@ -883,6 +930,7 @@ def main():
     # Examples.Evolution.model_generation()
     # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
+    Examples.Evolution.show_best_models()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()
     # Examples.Evolution.test_random_model_variance()
