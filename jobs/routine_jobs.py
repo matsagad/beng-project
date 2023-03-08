@@ -66,11 +66,10 @@ class GeneticAlgorithmJob(Job):
             crossover = CrossoverOperator.subgraph_swap
             scale_fitness = (
                 ModelPenalty.state_penalty(m=float(_args["penalty_coeff"]))
-                if _args["target_states"] == -1
+                if int(_args["target_states"]) < 2
                 else ModelPenalty.balanced_state_penalty(
-                    target_state=int(
-                        _args["target_states"], m=float(_args["penalty_coeff"])
-                    )
+                    target_state=int(_args["target_states"]),
+                    m=float(_args["penalty_coeff"]),
                 )
             )
         else:
