@@ -679,7 +679,7 @@ class Examples:
                 MutationOperator.flip_tf,
                 MutationOperator.add_noise,
             ]
-            scale_fitness = ModelPenalty.state_penalty(6)
+            scale_fitness = ModelPenalty.state_penalty()
             crossover = CrossoverOperator.subgraph_swap
             select = SelectionOperator.roulette_wheel
             runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
@@ -726,11 +726,12 @@ class Examples:
             data, _, _, _ = get_tf_data()
 
             num_models = 3
-            states = 10
+            states = 6
+            penalty_coeff = 12
             population, iterations = 500, 500
-            fname = "jobs/7157908_models.dat"
+            fname = "jobs/7163286_models.dat"
 
-            scale_fitness = ModelPenalty.state_penalty(6)
+            scale_fitness = ModelPenalty._old_state_penalty(penalty_coeff)
 
             with open(fname, "rb") as f:
                 models = pickle.load(f)
@@ -757,7 +758,7 @@ class Examples:
                 ax.set_aspect("equal")
 
             plt.savefig(
-                f"{Examples.CACHE_FOLDER}/best_{num_models}_{states}_{population}_{iterations}.png",
+                f"{Examples.CACHE_FOLDER}/best_{num_models}_{states}_{penalty_coeff}_{population}_{iterations}.png",
                 dpi=200,
                 bbox_inches="tight",
                 pad_inches=0.25,

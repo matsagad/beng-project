@@ -7,7 +7,6 @@ from evolution.genetic.penalty import ModelPenalty
 from utils.process import get_tf_data
 from jobs.job import Job
 import pickle
-from math import exp
 
 
 class GeneticAlgorithmJob(Job):
@@ -17,7 +16,7 @@ class GeneticAlgorithmJob(Job):
             "population": 10,
             "iterations": 10,
             "fixed_states": False,
-            "penalty_coeff": 6,
+            "penalty_coeff": 8.0,
             "reversible": True,
             "one_active_state": True,
             "n_processors": 1,
@@ -63,8 +62,7 @@ class GeneticAlgorithmJob(Job):
 
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
-            # Penalise models with many states (regardless of edge count - a TODO)
-            scale_fitness = ModelPenalty.state_penalty(float(_args["penalty_coeff"]))
+            scale_fitness = ModelPenalty.state_penalty(m=float(_args["penalty_coeff"]))
         else:
             crossover = CrossoverOperator.one_point_triangular_row_swap
             scale_fitness = lambda _, mi: mi

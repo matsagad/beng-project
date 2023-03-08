@@ -5,15 +5,30 @@ import math
 
 class ModelPenalty:
     MAX_MI = 2
+    MIN_STATES = 2
+    MIN_EDGES = 2
 
-    def state_penalty(k: float) -> Callable:
+    def _old_state_penalty(k: float = 6.0) -> Callable:
         return lambda model, mi: max(
             0, mi - ModelPenalty.MAX_MI / (1 + k * math.exp(k - model.num_states))
         )
 
-    def edge_penalty(k: float) -> Callable:
+    def state_penalty(m: float = 8.0, n: float = 6.0) -> Callable:
         return lambda model, mi: max(
-            0, mi - ModelPenalty.MAX_MI / (1 + k * math.exp(k - model.num_edges))
+            0,
+            mi
+            - ModelPenalty.MAX_MI
+            * (
+                1 - math.exp(-(((model.num_states - ModelPenalty.MIN_STATES) / m) ** n))
+            ),
+        )
+
+    def edge_penalty(m: float = 16.0, n: float = 2.0) -> Callable:
+        return lambda model, mi: max(
+            0,
+            mi
+            - ModelPenalty.MAX_MI
+            * (1 - math.exp(-(((model.num_edges - ModelPenalty.MIN_EDGES) / m) ** n))),
         )
 
     def erdos_penalty(beta: float) -> Callable:
