@@ -15,11 +15,12 @@ class GeneticAlgorithmJob(Job):
             "states": 2,
             "population": 10,
             "iterations": 10,
-            "fixed_states": False,
+            "elite_ratio": 0.2,
+            "fixed_states": "False",
             "penalty_coeff": 8.0,
             "target_states": -1,
-            "reversible": True,
-            "one_active_state": True,
+            "reversible": "True",
+            "one_active_state": "True",
             "n_processors": 1,
             "cache_folder": "cache",
             "output_file": "models.dat",
@@ -34,6 +35,7 @@ class GeneticAlgorithmJob(Job):
           states            Number of states the model population starts with
           population        Number of models to consider in each generation
           iterations        Number of generations to run
+          elite_ratio       Percentage of population that are kept as elites
           fixed_states      Flag for if states should be fixed (False)
           penalty_coeff     Parameter for penalising models
           target_states     Target number of states for models (-1)
@@ -88,6 +90,7 @@ class GeneticAlgorithmJob(Job):
             states=int(_args["states"]),
             population=int(_args["population"]),
             iterations=int(_args["iterations"]),
+            elite_ratio=float(_args["elite_ratio"]),
             n_processors=int(_args["n_processors"]),
             model_generator_params=mg_params,
             verbose=True,
