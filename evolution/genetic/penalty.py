@@ -24,7 +24,7 @@ class ModelPenalty:
         )
 
     def balanced_state_penalty(
-        target_state: int = 5, m: float = 3.0, n: float = 2.0
+        target_state: int = 5, m: float = 8.0, n: float = 2.0
     ) -> Callable:
         return lambda model, mi: max(
             0,

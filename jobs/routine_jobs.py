@@ -17,6 +17,7 @@ class GeneticAlgorithmJob(Job):
             "iterations": 10,
             "fixed_states": False,
             "penalty_coeff": 8.0,
+            "target_states": -1,
             "reversible": True,
             "one_active_state": True,
             "n_processors": 1,
@@ -35,6 +36,7 @@ class GeneticAlgorithmJob(Job):
           iterations        Number of generations to run
           fixed_states      Flag for if states should be fixed (False)
           penalty_coeff     Parameter for penalising models
+          target_states     Target number of states for models (-1)
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
           n_processors      Number of processors to parallelise model evaluation
@@ -62,7 +64,15 @@ class GeneticAlgorithmJob(Job):
 
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
-            scale_fitness = ModelPenalty.state_penalty(m=float(_args["penalty_coeff"]))
+            scale_fitness = (
+                ModelPenalty.state_penalty(m=float(_args["penalty_coeff"]))
+                if _args["target_states"] == -1
+                else ModelPenalty.balanced_state_penalty(
+                    target_state=int(
+                        _args["target_states"], m=float(_args["penalty_coeff"])
+                    )
+                )
+            )
         else:
             crossover = CrossoverOperator.one_point_triangular_row_swap
             scale_fitness = lambda _, mi: mi
