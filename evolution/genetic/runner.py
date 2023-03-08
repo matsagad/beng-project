@@ -132,10 +132,18 @@ class GeneticRunner:
                     for _, _, i in heapq.nsmallest(len(top_models), top_models)
                 ]
 
-            # Use selection operator to choose parents for next generation
             _fitness_scores = [-fitness for fitness, _, _ in _sorted_tuples]
             _mi_scores = [mi for _, mi, _ in _sorted_tuples]
 
+            if debug:
+                print(f"\tMean Population Fitness: {np.average(_fitness_scores):.3f}")
+                print(f"\tMean Population MI: {np.average(_mi_scores):.3f}")
+                print(
+                    f"\tAvg Number of States: {np.average([model.num_states for model in models]):.3f}"
+                )
+                print(f"\tIteration Duration: {(time.time() - start):.3f}s")
+
+            # Use selection operator to choose parents for next generation
             parents = self.select(
                 np.array(_fitness_scores)[np.argsort(sorted_indices)], n=num_children
             )
@@ -158,7 +166,3 @@ class GeneticRunner:
                 )
 
             models = elite + children
-            if debug:
-                print(f"\tMean Population Fitness: {np.average(_fitness_scores):.3f}")
-                print(f"\tMean Population MI: {np.average(_mi_scores):.3f}")
-                print(f"\tIteration Duration: {(time.time() - start):.3f}s")
