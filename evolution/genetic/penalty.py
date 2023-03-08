@@ -23,6 +23,16 @@ class ModelPenalty:
             ),
         )
 
+    def balanced_state_penalty(
+        target_state: int = 5, m: float = 3.0, n: float = 2.0
+    ) -> Callable:
+        return lambda model, mi: max(
+            0,
+            mi
+            - ModelPenalty.MAX_MI
+            * (1 - math.exp(-((((model.num_states - target_state) ** 2) / m) ** n))),
+        )
+
     def edge_penalty(m: float = 16.0, n: float = 2.0) -> Callable:
         return lambda model, mi: max(
             0,
