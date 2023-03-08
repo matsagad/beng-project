@@ -17,8 +17,10 @@ Runs a genetic algorithm on a randomly generated initial population of models. A
 | `states`           | Number of states the model population starts with |
 | `population`       | Number of models to consider in each generation |
 | `iterations`       | Number of generations to run |
+| `elite_ratio`      | Percentage of population that are kept as elites (0.2) |
 | `fixed_states`     | Flag for if states should be fixed (False) |
 | `penalty_coeff`    | Parameter for penalising models |
+| `target_states`    | Target number of states for models (-1) |
 | `reversible`       | Flag for if reactions should be reversible (True) |
 | `one_active_state` | Flag for if models should have only one active state (True) |
 | `n_processors`     | Number of processors to parallelise model evaluation |
