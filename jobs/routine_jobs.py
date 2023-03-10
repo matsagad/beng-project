@@ -19,6 +19,7 @@ class GeneticAlgorithmJob(Job):
             "fixed_states": "False",
             "penalty_coeff": 8.0,
             "target_states": -1,
+            "p_edge": 0.5,
             "reversible": "True",
             "one_active_state": "True",
             "n_processors": 1,
@@ -39,6 +40,7 @@ class GeneticAlgorithmJob(Job):
           fixed_states      Flag for if states should be fixed (False)
           penalty_coeff     Parameter for penalising models
           target_states     Target number of states for models (-1)
+          p_edge            Probability of edge connections at init population (0.5)
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
           n_processors      Number of processors to parallelise model evaluation
@@ -84,6 +86,7 @@ class GeneticAlgorithmJob(Job):
         mg_params = {
             "reversible": bool(_args["reversible"]),
             "one_active_state": bool(_args["one_active_state"]),
+            "p_edge": float(_args["p_edge"]),
         }
 
         models = runner.run(
