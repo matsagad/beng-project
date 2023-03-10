@@ -21,6 +21,7 @@ Runs a genetic algorithm on a randomly generated initial population of models. A
 | `fixed_states`     | Flag for if states should be fixed (False) |
 | `penalty_coeff`    | Parameter for penalising models |
 | `target_states`    | Target number of states for models (-1) |
+| `p_edge`           | Probability of edge connections at init population (0.5) | 
 | `reversible`       | Flag for if reactions should be reversible (True) |
 | `one_active_state` | Flag for if models should have only one active state (True) |
 | `n_processors`     | Number of processors to parallelise model evaluation |
