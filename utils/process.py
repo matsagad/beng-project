@@ -8,19 +8,34 @@ import os.path
 import json
 
 
-def _normalise(data):
+def _min_max_scale(data, local: bool = False):
     """
-    Helper function for normalising multidimensional data.
+    Helper function for min-max scaling multidimensional data.
     """
-    min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
-    max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
+    if local:
+        min_trace = np.expand_dims(np.min(data, axis=-1), axis=-1)
+        max_trace = np.expand_dims(np.max(data, axis=-1), axis=-1)
+    else:
+        min_trace, max_trace = np.min(data), np.max(data)
+
     return (data - min_trace) / (max_trace - min_trace)
+
+
+def _max_scale(data, local: bool = True):
+    """
+    Helper function for max scaling multidimensional data.
+    """
+    max_trace = (
+        np.expand_dims(np.max(data, axis=-1), axis=-1) if local else np.max(data)
+    )
+    return data / max_trace
 
 
 def get_tf_data(
     f_data: str = "data_tf.npy",
     f_params: str = "params_tf.json",
-    normalise: bool = True,
+    scale: bool = True,
+    local_scale: bool = True,
     cache_folder: str = "cache",
     data_folder: str = "data",
 ) -> Tuple[NDArray[Shape["Any, Any, Any, Any"], Float], int, int]:
@@ -32,11 +47,13 @@ def get_tf_data(
     path_to_data = f"{cache_folder}/{f_data}"
     path_to_params = f"{cache_folder}/{f_params}"
 
+    scale_fn = lambda x: _min_max_scale(x, local=local_scale)
+
     if os.path.isfile(path_to_data) and os.path.isfile(path_to_params):
         print("Using cached data!")
 
         ts = np.load(path_to_data)
-        ts = _normalise(ts) if normalise else ts
+        ts = scale_fn(ts) if scale else ts
 
         with open(path_to_params) as f:
             params = json.load(f)
@@ -175,11 +192,11 @@ def get_tf_data(
     # Set leading dimension to be environmental identity
     ts = np.moveaxis(np.array(ts), 1, 0)
 
-    np.save(f_data, ts)
-    with open(f_params, "w") as f:
+    np.save(path_to_data, ts)
+    with open(path_to_params, "w") as f:
         json.dump(params, f)
     print("Cached data successfully!")
 
-    ts = _normalise(ts) if normalise else ts
+    ts = scale_fn(ts) if scale else ts
 
     return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
