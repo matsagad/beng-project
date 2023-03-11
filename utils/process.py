@@ -174,11 +174,12 @@ def get_tf_data(
 
     # Set leading dimension to be environmental identity
     ts = np.moveaxis(np.array(ts), 1, 0)
-    ts = _normalise(ts) if normalise else ts
 
     np.save(f_data, ts)
     with open(f_params, "w") as f:
         json.dump(params, f)
     print("Cached data successfully!")
+
+    ts = _normalise(ts) if normalise else ts
 
     return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
