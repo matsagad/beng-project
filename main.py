@@ -19,11 +19,11 @@ import sys
 import time
 
 
-def get_tf_data():
+def get_tf_data(**kwargs):
     args = sys.argv[1:]
     if not args:
-        return get_data()
-    return get_data(cache_folder=args[0])
+        return get_data(**kwargs)
+    return get_data(cache_folder=args[0], **kwargs)
 
 
 class Examples:
@@ -157,7 +157,8 @@ class Examples:
         def visualise_tf_concentration():
             import matplotlib.pyplot as plt
 
-            data, origin, time_delta, tf_names = get_tf_data()
+            data, origin, time_delta, tf_names = get_tf_data(scale=True, local_scale=True)
+            
             num_envs, num_tfs = data.shape[:2]
 
             fig, axes = plt.subplots(
@@ -443,25 +444,24 @@ class Examples:
         def max_mi_estimation():
             data, origin, _, tf_names = get_tf_data()
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            dummy_model = PromoterModel([RF.Constant([1])])
+            reps = 10
+            dummy_model = PromoterModel.dummy()
 
             est = DecodingEstimator(origin, interval, "naive_bayes")
+            est.parallel = True
+            print("| TF\t| MI\t|")
             for tf_index, tf in enumerate(tf_names):
-                for replicates in [1, 1, 1, 1, 1, 1]:
-                    TIME_AXIS = 2
-                    raw_data = np.moveaxis(data[:, tf_index], TIME_AXIS, 0)
-                    raw_data = raw_data.reshape((*raw_data.shape, 1))
-                    # To test repeated samples are handled
-                    rep_raw_data = np.tile(raw_data, (replicates, 1))
+                TIME_AXIS = 2
+                raw_data = np.moveaxis(data[:, tf_index], TIME_AXIS, 0)
+                raw_data = raw_data.reshape((*raw_data.shape, 1))
 
-                    # Estimate MI
-                    split_data = est._split_classes(dummy_model, raw_data)
+                # Estimate MI
+                split_data = est._split_classes(dummy_model, raw_data)
 
-                    start = time.time()
-                    mi_score = est._estimate(split_data, add_noise=False)
-                    print(time.time() - start)
-
-                    print(f"{tf} {replicates} MI: {mi_score}")
+                total = 0
+                for _ in range(reps):
+                    total += est._estimate(split_data, add_noise=False)
+                print(f"| {tf}\t| {(total/reps):.3f}\t|")
 
         def mi_estimation_table():
             # (for simple model only)
@@ -733,6 +733,7 @@ class Examples:
                 states=states,
                 population=population,
                 iterations=iterations,
+                n_processors=min(10, population),
                 verbose=True,
                 debug=True,
             )
@@ -957,7 +958,7 @@ def main():
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
-    Examples.PlottingVisuals.visualise_tf_concentration()
+    # Examples.PlottingVisuals.visualise_tf_concentration()
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.PlottingVisuals.visualise_crossover()
     # Examples.PlottingVisuals.visualise_crossover_chart()
