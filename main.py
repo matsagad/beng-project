@@ -154,6 +154,51 @@ class Examples:
                 model=model,
             )
 
+        def visualise_tf_concentration():
+            import matplotlib.pyplot as plt
+
+            data, origin, time_delta, tf_names = get_tf_data()
+            num_envs, num_tfs = data.shape[:2]
+
+            fig, axes = plt.subplots(
+                num_tfs, num_envs + 1, sharey="row", sharex=True, figsize=(5, 10)
+            )
+            fig.tight_layout()
+            interval = OneStepDecodingPipeline.FIXED_INTERVAL
+            est = DecodingEstimator(origin, interval, "naive_bayes")
+            plt.subplots_adjust(wspace=0.1, hspace=0.1)
+
+            # Raw Nuclear Translocation Trajectory
+            TIME_AXIS = 2
+            for i, row in enumerate(axes):
+                raw_data = np.moveaxis(data[:, i], TIME_AXIS, 0)
+                raw_data = raw_data.reshape((*raw_data.shape, 1))
+                split_raw = est._split_classes(
+                    PromoterModel([[RF.Constant([1])]]), raw_data
+                )
+
+                for j, ax in enumerate(row):
+                    ax.imshow(
+                        split_raw[j],
+                        cmap="rainbow",
+                        aspect="auto",
+                        interpolation="none",
+                        vmin=0,
+                        vmax=1,
+                    )
+                    # ax.yaxis.set_ticks_position("right")
+                    ax.set_yticks([])
+                row[0].set_ylabel(tf_names[i])
+
+            fst_row = axes[0]
+            env_labels = ["rich", "carbon", "osmotic", "oxidative"]
+
+            for ax, label in zip(fst_row, env_labels):
+                ax.xaxis.set_label_position('top')
+                ax.set_xlabel(label)
+
+            plt.savefig(f"{Examples.CACHE_FOLDER}/tf_conc.png", dpi=200, pad_inches=0.2)
+
         def visualise_activity():
             data, origin, time_delta, _ = get_tf_data()
 
@@ -912,6 +957,7 @@ def main():
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
+    Examples.PlottingVisuals.visualise_tf_concentration()
     # Examples.PlottingVisuals.visualise_activity()
     # Examples.PlottingVisuals.visualise_crossover()
     # Examples.PlottingVisuals.visualise_crossover_chart()
@@ -926,7 +972,7 @@ def main():
     # Examples.Evolution.model_generation()
     # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
-    Examples.Evolution.show_best_models()
+    # Examples.Evolution.show_best_models()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()
     # Examples.Evolution.test_random_model_variance()
