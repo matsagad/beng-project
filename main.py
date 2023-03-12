@@ -401,22 +401,35 @@ class Examples:
 
         def trajectory():
             data, _, time_delta, _ = get_tf_data()
-            model = Examples.models[2]
+
+            sim = OneStepSimulator(data, tau=time_delta, realised=True, replicates=10)
+            sim.seed = 27
+            res = [[], []]
 
             # Simulate
-            for replicates in [1, 1, 5, 10, 50]:
-                repeats, total = 10, 0
+            for states in range(6, 11):
+                repeats, totals = 5, [0, 0]
                 for _ in range(repeats):
-                    start = time.time()
+                    model = ModelGenerator.get_random_model(states, p_edge=0.5)
+                    trajectories = []
 
-                    sim = OneStepSimulator(
-                        data, tau=time_delta, realised=True, replicates=replicates
-                    )
-                    trajectories = sim.simulate(model)
+                    for i in (0, 1):
+                        start = time.time()
+                        sim.binary_search = bool(i)
+                        trajectories.append(sim.simulate(model))
+                        totals[i] += time.time() - start
 
-                    total += time.time() - start
+                    if not np.array_equal(trajectories[0], trajectories[1]):
+                        print(
+                            "Trajectories are not equal for the same model and random seed!"
+                        )
 
-                print(f"{replicates} replicates: {total / repeats}")
+                for i in (0, 1):
+                    res[i].append(totals[i] / repeats)
+                print(
+                    f"{states} states: {', '.join(f'{res[i][-1]:.3f}s' for i in (0, 1))}"
+                )
+            print(res)
 
         def mi_estimation():
             data, origin, time_delta, _ = get_tf_data()
@@ -945,7 +958,7 @@ class Examples:
 
 
 def main():
-    # Examples.Benchmarking.trajectory()
+    Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
