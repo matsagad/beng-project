@@ -917,9 +917,7 @@ class Examples:
             )
             pip.set_parallel()
 
-            dummy_model = PromoterModel(
-                [[None, RF.Constant([1])], [RF.Constant([1]), None]]
-            ).with_active_states([0])
+            dummy_model = PromoterModel.dummy()
             dummy_traj = np.zeros(pip.simulator.simulate(dummy_model).shape)
 
             # Rich state left as is. Note: first state is active state

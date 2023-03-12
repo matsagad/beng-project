@@ -174,3 +174,7 @@ class PromoterModel:
 
     def hash(self) -> str:
         return hex((self.__hash__() + (1 << 64)) % (1 << 64))
+
+    @staticmethod
+    def dummy():
+        return PromoterModel([[]])
