@@ -402,15 +402,18 @@ class Examples:
         def trajectory():
             data, _, time_delta, _ = get_tf_data()
 
+            states = [i for i in range(2, 20)]
+            repeats = 10
+
             sim = OneStepSimulator(data, tau=time_delta, realised=True, replicates=10)
             sim.seed = 27
             res = [[], []]
 
             # Simulate
-            for states in range(6, 11):
-                repeats, totals = 5, [0, 0]
+            for num_states in states:
+                totals = [0, 0]
                 for _ in range(repeats):
-                    model = ModelGenerator.get_random_model(states, p_edge=0.5)
+                    model = ModelGenerator.get_random_model(num_states, p_edge=0.5)
                     trajectories = []
 
                     for i in (0, 1):
@@ -427,8 +430,21 @@ class Examples:
                 for i in (0, 1):
                     res[i].append(totals[i] / repeats)
                 print(
-                    f"{states} states: {', '.join(f'{res[i][-1]:.3f}s' for i in (0, 1))}"
+                    f"{num_states} states: {', '.join(f'{res[i][-1]:.3f}s' for i in (0, 1))}"
                 )
+
+            import matplotlib.pyplot as plt
+
+            plt.plot(states, res[0], label="Vectorised $O(n)$")
+            plt.plot(states, res[1], label="Non-vectorised $O(log(n))$")
+            
+            plt.xticks(states)
+            
+            plt.ylabel("Time (s)")
+            plt.xlabel("Number of States")
+            plt.legend()
+
+            plt.savefig(f"{Examples.CACHE_FOLDER}/ssa_comparison.png")
             print(res)
 
         def mi_estimation():
@@ -727,8 +743,8 @@ class Examples:
 
             data, _, _, _ = get_tf_data()
 
-            states = 5
-            population, iterations = 40, 40
+            states = 8
+            population, iterations = 10, 3
             fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
 
             mutations = [
