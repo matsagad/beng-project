@@ -22,6 +22,8 @@ class OneStepSimulator(StochasticSimulator):
         self.tau = tau
         self.realised = realised
         self.replicates = replicates
+        self.seed = None
+        self.binary_search = True
 
     def simulate(
         self, model: PromoterModel
@@ -57,7 +59,7 @@ class OneStepSimulator(StochasticSimulator):
         num_model_states = len(model.init_state)
 
         ## Randomly initialise state
-        np_rs = np.random.RandomState()
+        np_rs = np.random.RandomState(seed=self.seed)
         init_cdf = np.cumsum(model.init_state)
         init_chosen = init_cdf.searchsorted(
             np_rs.uniform(size=(self.num_classes, self.batch_size, self.replicates))
@@ -88,28 +90,41 @@ class OneStepSimulator(StochasticSimulator):
 
         for matrix_exp, rand_mats in zip(matrix_exps, rand_tensors):
             prob_dist = np.einsum("ijkl,ijlm->ijkm", state, matrix_exp)
-            chosen = []
-            for env_id, (env_prob_cdf, rand_mat) in enumerate(
-                zip(np.cumsum(prob_dist, axis=STATE_AXIS), rand_mats)
-            ):
-                for batch_id, (batch_prob_cdf, rand_vec) in enumerate(
-                    zip(env_prob_cdf, rand_mat)
+
+            if not self.binary_search:
+                # A fully vectorised O(n) approach
+                x = np.argmax(
+                    np.cumsum(prob_dist, axis=STATE_AXIS)
+                    > np.expand_dims(rand_mats, -1),
+                    axis=-1,
+                )
+                chosen = np.indices((*x.shape, 1))
+                chosen[-1] = np.expand_dims(x, -1)
+            else:
+                # A non-vectorised O(log(n)) approach
+                chosen = []
+                for env_id, (env_prob_cdf, rand_mat) in enumerate(
+                    zip(np.cumsum(prob_dist, axis=STATE_AXIS), rand_mats)
                 ):
-                    chosen.extend(
-                        (
-                            env_id,
-                            batch_id,
-                            replicate_id,
-                            replicate.searchsorted(rand_num),
+                    for batch_id, (batch_prob_cdf, rand_vec) in enumerate(
+                        zip(env_prob_cdf, rand_mat)
+                    ):
+                        chosen.extend(
+                            (
+                                env_id,
+                                batch_id,
+                                replicate_id,
+                                replicate.searchsorted(rand_num),
+                            )
+                            for replicate_id, (replicate, rand_num) in enumerate(
+                                zip(batch_prob_cdf, rand_vec)
+                            )
                         )
-                        for replicate_id, (replicate, rand_num) in enumerate(
-                            zip(batch_prob_cdf, rand_vec)
-                        )
-                    )
+                chosen = np.array(chosen).T
 
             # Update the state
             state = np.zeros(state.shape)
-            state[tuple(np.array(chosen).T)] = 1
+            state[tuple(chosen)] = 1
             states.append(state)
 
         states = np.array(states)
