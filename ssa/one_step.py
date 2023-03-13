@@ -56,27 +56,20 @@ class OneStepSimulator(StochasticSimulator):
             return np.array(states)
 
         # Find realised trajectory
-        num_model_states = len(model.init_state)
+        num_model_states = model.num_states
 
         ## Randomly initialise state
         np_rs = np.random.RandomState(seed=self.seed)
         init_cdf = np.cumsum(model.init_state)
-        init_chosen = init_cdf.searchsorted(
+        _init_chosen = init_cdf.searchsorted(
             np_rs.uniform(size=(self.num_classes, self.batch_size, self.replicates))
         )
         state = np.zeros(
             (self.num_classes, self.batch_size, self.replicates, num_model_states)
         )
-        state[
-            tuple(
-                np.array(
-                    [
-                        (*indices, chosen)
-                        for indices, chosen in np.ndenumerate(init_chosen)
-                    ]
-                ).T
-            )
-        ] = 1
+        init_chosen = np.indices((*_init_chosen.shape, 1))
+        init_chosen[-1] = np.expand_dims(_init_chosen, -1)
+        state[tuple(init_chosen)] = 1
         ## dimensions are: # of classes, batch size, # of replicates, # of states
 
         states = [state]
@@ -87,19 +80,18 @@ class OneStepSimulator(StochasticSimulator):
         )
 
         STATE_AXIS = 3
-
         for matrix_exp, rand_mats in zip(matrix_exps, rand_tensors):
             prob_dist = np.einsum("ijkl,ijlm->ijkm", state, matrix_exp)
 
             if not self.binary_search:
                 # A fully vectorised O(n) approach
-                x = np.argmax(
+                _chosen = np.argmax(
                     np.cumsum(prob_dist, axis=STATE_AXIS)
                     > np.expand_dims(rand_mats, -1),
                     axis=-1,
                 )
-                chosen = np.indices((*x.shape, 1))
-                chosen[-1] = np.expand_dims(x, -1)
+                chosen = np.indices((*_chosen.shape, 1))
+                chosen[-1] = np.expand_dims(_chosen, -1)
             else:
                 # A non-vectorised O(log(n)) approach
                 chosen = []
