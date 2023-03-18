@@ -4,6 +4,18 @@ from nptyping import NDArray, Shape, Float, Int
 from scipy.linalg import expm, norm
 import numpy as np
 
+# @nb.njit
+# def _get_matrix_exp(
+#     Q: NDArray[Shape["Any, Any, Any, Any, Any"], Float]
+# ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
+#     with objmode(P='float64[:,:,:,:,:]'):
+#         scale = 1 << max(0, int((np.log2(norm(Q)))))
+#         P = np.linalg.matrix_power(expm(Q / scale), scale)
+#     return P
+
+# @nb.njit(Q='float32[:,:,:,:,:]')
+# def numba_expm(Q):
+#     return expm(Q)
 
 class PromoterModel:
     def __init__(self, rate_fn_matrix: List[List[RateFunction.Function]]):
@@ -26,6 +38,7 @@ class PromoterModel:
 
         self.num_states = len(rate_fn_matrix)
         self.num_edges = sum(sum(map(bool, row)) for row in self.rate_fn_matrix)
+        self.numba = False
 
     def with_init_state(
         self, init_state: NDArray[Shape["Any"], Int]
@@ -86,6 +99,8 @@ class PromoterModel:
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
         Q = tau * self.get_generator(exogenous_data)
         scale = 1 << max(0, int((np.log2(norm(Q)))))
+        # if self.numba:
+        #     return np.linalg.matrix_power(numba_expm(Q / scale), scale)
         return np.linalg.matrix_power(expm(Q / scale), scale)
 
     def visualise(
@@ -131,7 +146,7 @@ class PromoterModel:
         ]
         graph.add_edges([edge for edge, _ in edges])
         graph.es["label"] = [label for _, label in edges]
-        graph.es["label_size"] = 8
+        graph.es["label_size"] = 7
 
         visual_style = {
             # "edge_curved": 0,
@@ -140,7 +155,8 @@ class PromoterModel:
             "edge_width": 1,
             "edge_background": "white" if transparent else palette[2],
             "vertex_label": None if small_size else graph.vs["label"],
-            "bbox": (100, 100),
+            "bbox": (200, 200),
+            "layout": graph.layout("kk"),
         }
 
         if target_ax is not None:

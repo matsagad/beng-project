@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from typing import Tuple
 from evolution.genetic.runner import GeneticRunner
 from evolution.genetic.penalty import ModelPenalty
 from evolution.genetic.operators.mutation import MutationOperator
@@ -672,6 +673,69 @@ class Examples:
             plt.legend(loc="upper right")
             plt.savefig(f"{Examples.CACHE_FOLDER}/mi_distribution.png", dpi=200)
 
+        def _pip_evaluate(pip: OneStepDecodingPipeline, model: PromoterModel, index: int) -> Tuple[float, int]:
+            mi = pip.evaluate(model, verbose=False)
+            return index, mi
+
+        def sklearn_nested_parallelism():
+            data, origin, time_delta, _ = get_tf_data()
+            model = Examples.models[4]
+
+            reps = 20
+            n_processors = 5
+            iters = 2
+
+            pip = OneStepDecodingPipeline(data, tau=time_delta, replicates=reps)
+
+            # Parallelised n_job=1 tasks
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+
+            start = time.time()
+            with ProcessPoolExecutor(
+                max_workers=min(n_processors, iters),
+            ) as executor:
+                futures = []
+                for i in range(iters):
+                    futures.append(
+                        executor.submit(
+                            Examples.Benchmarking._pip_evaluate,
+                            pip,
+                            model,
+                            i,
+                        )
+                    )
+
+                for future in as_completed(futures):
+                    mi_score, i = future.result()
+                    print(f"{reps}-{i}: {mi_score:.3f}")
+            print("\n" * 5 + f"Took {time.time() - start:.3f}s" + "\n" * 5)
+            
+            # Nested Parallelism
+            import dask
+            from dask.distributed import Client
+            from sklearn.utils import register_parallel_backend
+            import logging
+
+            client = Client(silence_logs=logging.INFO)
+            dask.config.set(scheduler="processes")
+            register_parallel_backend("distributed", client)
+
+            pip.set_parallel()
+            start = time.time()
+            futures = []
+            for i in range(iters):
+                futures.append(
+                    client.submit(
+                        Examples.Benchmarking._pip_evaluate,
+                        pip,
+                        model,
+                        i,
+                    )
+                )
+            res = client.gather(futures)
+            print(res)
+            print("\n" * 5 + f"Took {time.time() - start:.3f}s" + "\n" * 5)
+
         def genetic_multiprocessing_overhead():
             data, _, _, _ = get_tf_data()
 
@@ -972,13 +1036,14 @@ class Examples:
 
 
 def main():
-    Examples.Benchmarking.trajectory()
+    # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
     # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
     # Examples.Benchmarking.mi_vs_repeated_intervals()
     # Examples.Benchmarking.mi_distribution()
+    Examples.Benchmarking.sklearn_nested_parallelism()
     # Examples.Benchmarking.genetic_multiprocessing_overhead()
     # Examples.Benchmarking.test_crossover()
 
