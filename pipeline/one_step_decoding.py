@@ -27,6 +27,8 @@ class OneStepDecodingPipeline(Pipeline):
             ),
             estimator=DecodingEstimator(origin, interval, classifier_name, replicates=replicates),
         )
+        # Optimisation: don't simulate trajectories past interval
+        self.simulator.num_times = origin + interval
 
     def evaluate(self, model: PromoterModel, verbose: bool = False) -> float:
         return super().estimateMI(model, verbose)
