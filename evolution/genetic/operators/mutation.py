@@ -73,10 +73,10 @@ class MutationOperator:
 
     def flip_activity(model: PromoterModel, p: float = 0.2) -> PromoterModel:
         num_states = len(model.rate_fn_matrix)
-        # Randomly flip activity of node by some probability
+        # Randomly flip activity of node by some probability (except the first state)
         # Find XOR of Bernoulli sample and current active states
-        model.active_states = model.active_states != np.random.binomial(
-            1, p, num_states
+        model.active_states[1:] = model.active_states[1:] != np.random.binomial(
+            1, p, num_states - 1
         ).astype(bool)
 
         return model
