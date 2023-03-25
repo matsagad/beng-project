@@ -27,7 +27,7 @@ class ModelPenalty:
         )
 
     def reversed_state_penalty(
-        m: float = 8.0, n: float = 5.0, states: int = 5
+        m: float = 8.0, n: float = 5.0, states: int = 10
     ) -> Callable:
         return lambda model, mi: max(
             0,
