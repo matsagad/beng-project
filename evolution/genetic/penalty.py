@@ -32,11 +32,8 @@ class ModelPenalty:
         return lambda model, mi: max(
             0,
             mi
-            - max(
-                ModelPenalty.MAX_MI
-                * (1 - math.exp(-(((-model.num_states + states) / m) ** n))),
-                0,
-            ),
+            - ModelPenalty.MAX_MI
+            * (1 - math.exp(-((max(-model.num_states + states, 0) / m) ** n))),
         )
 
     def balanced_state_penalty(
