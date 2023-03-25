@@ -215,6 +215,9 @@ class Examples:
                     [RF.Linear([1], [2]), RF.Linear([1], [2]), None],
                 ]
             ).with_equal_active_states([0, 1])
+            model = ModelGenerator.get_random_model(5, one_active_state=False)
+            print(model.activity_weights)
+            
             replicates = 10
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
@@ -1055,7 +1058,7 @@ def main():
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_tf_concentration()
-    # Examples.PlottingVisuals.visualise_activity()
+    Examples.PlottingVisuals.visualise_activity()
     # Examples.PlottingVisuals.visualise_crossover()
     # Examples.PlottingVisuals.visualise_crossover_chart()
     # Examples.PlottingVisuals.visualise_crossbreeding()
@@ -1067,7 +1070,7 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    Examples.Evolution.evolutionary_run()
+    # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.show_best_models()
     # Examples.Evolution.crossover_no_side_effects()
