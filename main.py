@@ -44,7 +44,7 @@ class Examples:
                 [None, RF.Linear([a], [tf_index])],
                 [RF.Constant([b]), None],
             ]
-        ).with_active_states([1]),
+        ).with_equal_active_states([1]),
         3: PromoterModel(
             rate_fn_matrix=[
                 [None, None, RF.Constant([m])],
@@ -55,7 +55,7 @@ class Examples:
                     None,
                 ],
             ]
-        ).with_active_states([0, 1]),
+        ).with_equal_active_states([0, 1]),
         4: PromoterModel(
             rate_fn_matrix=[
                 [None, None, None, RF.Constant([a])],
@@ -68,7 +68,7 @@ class Examples:
                     None,
                 ],
             ]
-        ).with_active_states([0, 1, 2]),
+        ).with_equal_active_states([0, 1, 2]),
         "best_2": PromoterModel(
             [[None, RF.Linear([10], [4])], [RF.Linear([4.7], [2]), None]]
         ),
@@ -111,7 +111,7 @@ class Examples:
                         None,
                     ],
                 ]
-            ).with_active_states([0, 1, 2])
+            ).with_equal_active_states([0, 1, 2])
 
             # Visualise
             model.visualise(save=True, fname="cache/model10.png")
@@ -214,7 +214,7 @@ class Examples:
                     [RF.Linear([1], [2]), None, RF.Linear([10], [4])],
                     [RF.Linear([1], [2]), RF.Linear([1], [2]), None],
                 ]
-            ).with_active_states([0, 1])
+            ).with_equal_active_states([0, 1])
             replicates = 10
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
@@ -267,8 +267,8 @@ class Examples:
         def visualise_crossover():
             import matplotlib.pyplot as plt
 
-            model1 = ModelGenerator.get_random_model(10, p_edge=0.1)
-            model2 = ModelGenerator.get_random_model(3, p_edge=0.1)
+            model1 = ModelGenerator.get_random_model(5, p_edge=0.1, one_active_state=False)
+            model2 = ModelGenerator.get_random_model(3, p_edge=0.1, one_active_state=False)
             crossover = CrossoverOperator.subgraph_swap
 
             print("beginning swap")
@@ -816,6 +816,8 @@ class Examples:
                 MutationOperator.add_edge,
                 MutationOperator.flip_tf,
                 MutationOperator.add_noise,
+                MutationOperator.flip_activity,
+                MutationOperator.add_activity_noise,
             ]
             scale_fitness = ModelPenalty.state_penalty()
             crossover = CrossoverOperator.subgraph_swap
@@ -919,6 +921,8 @@ class Examples:
                 MutationOperator.add_edge,
                 MutationOperator.edit_edge,
                 MutationOperator.flip_tf,
+                MutationOperator.add_activity_noise,
+                MutationOperator.flip_activity,
             ]
             crossover = CrossoverOperator.one_point_triangular_row_swap
             select = SelectionOperator.tournament
@@ -927,7 +931,7 @@ class Examples:
             # Model1 can change hash but model2 must remain the same
             children = runner.crossover(model1, model2, False, True)
             for child in children:
-                for _ in range(100):
+                for _ in range(1000):
                     runner.mutate(child)
 
             for model in (model1, model2):
@@ -1043,7 +1047,7 @@ def main():
     # Examples.Benchmarking.mi_vs_interval()
     # Examples.Benchmarking.mi_vs_repeated_intervals()
     # Examples.Benchmarking.mi_distribution()
-    Examples.Benchmarking.sklearn_nested_parallelism()
+    # Examples.Benchmarking.sklearn_nested_parallelism()
     # Examples.Benchmarking.genetic_multiprocessing_overhead()
     # Examples.Benchmarking.test_crossover()
 
@@ -1063,7 +1067,7 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    # Examples.Evolution.evolutionary_run()
+    Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.show_best_models()
     # Examples.Evolution.crossover_no_side_effects()
