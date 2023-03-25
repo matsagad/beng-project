@@ -79,7 +79,7 @@ class MutationOperator:
         model.activity_weights += noise
 
         # If out of bounds, then "bounce" values against the boundaries.
-        out_of_bounds = (model.activity_weights < 0) & (model.activity_weights > 1)
+        out_of_bounds = (model.activity_weights < 0) | (model.activity_weights > 1)
         dec_part, int_part = np.modf(model.activity_weights[out_of_bounds])
         model.activity_weights[out_of_bounds] = (int_part % 2 == 0) * np.abs(
             dec_part
