@@ -4,18 +4,6 @@ from nptyping import NDArray, Shape, Float, Int
 from scipy.linalg import expm, norm
 import numpy as np
 
-# @nb.njit
-# def _get_matrix_exp(
-#     Q: NDArray[Shape["Any, Any, Any, Any, Any"], Float]
-# ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
-#     with objmode(P='float64[:,:,:,:,:]'):
-#         scale = 1 << max(0, int((np.log2(norm(Q)))))
-#         P = np.linalg.matrix_power(expm(Q / scale), scale)
-#     return P
-
-# @nb.njit(Q='float32[:,:,:,:,:]')
-# def numba_expm(Q):
-#     return expm(Q)
 
 class PromoterModel:
     def __init__(self, rate_fn_matrix: List[List[RateFunction.Function]]):
@@ -31,9 +19,8 @@ class PromoterModel:
         self.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
 
         # Only active state is first state by default
-        self.active_states = np.zeros(len(rate_fn_matrix), dtype=bool)
-        self.active_states[0] = True
-        # (should be changed for models with more than one active
+        self.activity_weights = np.zeros(len(rate_fn_matrix))
+        self.activity_weights[0] = 1
         # state, e.g. competing activator)
 
         self.num_states = len(rate_fn_matrix)
@@ -46,11 +33,17 @@ class PromoterModel:
         self.init_state = init_state
         return self
 
-    def with_active_states(
-        self, active_states: NDArray[Shape["Any"], Int]
+    def with_equal_active_states(
+        self, states: NDArray[Shape["Any"], Int]
     ) -> "PromoterModel":
-        self.active_states = np.zeros(len(self.rate_fn_matrix), dtype=bool)
-        self.active_states[active_states] = True
+        self.activity_weights = np.zeros(self.num_states)
+        self.activity_weights[states] = 1
+        return self
+
+    def with_activity_weights(
+        self, weights: NDArray[Shape["Any"], Float]
+    ) -> "PromoterModel":
+        self.activity_weights = weights
         return self
 
     def get_generator(
@@ -120,23 +113,23 @@ class PromoterModel:
         # Colors are from the "marumaru gum" palette by sukinapan!
         palette = ["#96beb1", "#fda9a9", "#f3eded"]
 
-        num_states = len(self.active_states)
-
         graph = Graph(directed=True)
-        graph.add_vertices(num_states)
+        graph.add_vertices(self.num_states)
+        
+        active_states = self.activity_weights > 0
+        activity_weights = self.activity_weights[active_states] / np.sum(self.activity_weights)
 
-        properties = np.zeros((num_states, 2), dtype=object)
-        properties[self.active_states, 0] = [
-            f"$A_{i}$" for i in range(sum(self.active_states))
-        ]
-        properties[self.active_states, 1] = palette[0]
-        properties[~self.active_states, 0] = [
-            f"$I_{i}$" for i in range(sum(1 - self.active_states))
-        ]
-        properties[~self.active_states, 1] = palette[1]
+        properties = np.zeros((self.num_states, 3), dtype=object)
+        properties[active_states, 0] = [f"$\\underset{{ {activity_weights[i]:.2f} }}{{ A_{{ {i} }} }}$" for i in range(sum(active_states))]
+        properties[active_states, 1] = palette[0]
+        properties[active_states, 2] = 9
+        properties[~active_states, 0] = [f"$I_{i}$" for i in range(sum(~active_states))]
+        properties[~active_states, 1] = palette[1]
+        properties[~active_states, 2] = 12
 
         graph.vs["label"] = properties[:, 0]
         graph.vs["color"] = properties[:, 1]
+        graph.vs["label_size"] = properties[:, 2]
 
         edges = [
             [(i, j), entry.str()]
@@ -184,7 +177,7 @@ class PromoterModel:
         return hash(
             (
                 *(tuple(row) for row in self.rate_fn_matrix),
-                *tuple(self.active_states),
+                *tuple(self.activity_weights),
             )
         )
 
