@@ -68,6 +68,7 @@ class GeneticAlgorithmJob(Job):
         
         if _args["one_active_state"] == "False":
             mutations.append(MutationOperator.flip_activity)
+            mutations.append(MutationOperator.add_activity_noise)
 
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
@@ -88,7 +89,7 @@ class GeneticAlgorithmJob(Job):
 
         mg_params = {
             "reversible": _args["reversible"] == "True",
-            "one_active_state": True,
+            "one_active_state": _args["one_active_state"] == "True",
             "p_edge": float(_args["p_edge"]),
         }
 

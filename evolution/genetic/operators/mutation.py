@@ -71,13 +71,32 @@ class MutationOperator:
 
         return model
 
+    def add_activity_noise(model: PromoterModel, p: float = 0.8) -> PromoterModel:
+        # Add Gaussian noise.
+        noise = np.random.binomial(1, p, model.num_states) * np.random.normal(
+            0, 1, model.num_states
+        )
+        model.activity_weights += noise
+
+        # If out of bounds, then "bounce" values against the boundaries.
+        out_of_bounds = (model.activity_weights < 0) & (model.activity_weights > 1)
+        dec_part, int_part = np.modf(model.activity_weights[out_of_bounds])
+        model.activity_weights[out_of_bounds] = (int_part % 2 == 0) * np.abs(
+            dec_part
+        ) + (int_part % 2 == 1) * (1 - np.abs(dec_part))
+
+        return model
+
     def flip_activity(model: PromoterModel, p: float = 0.2) -> PromoterModel:
-        num_states = len(model.rate_fn_matrix)
         # Randomly flip activity of node by some probability (except the first state)
-        # Find XOR of Bernoulli sample and current active states
-        model.active_states[1:] = model.active_states[1:] != np.random.binomial(
-            1, p, num_states - 1
-        ).astype(bool)
+        # If flipped from inactive to active, then initialise with random uniform weight.
+        to_flip = np.random.binomial(1, p, model.num_states - 1).astype(bool)
+        active = model.activity_weights[1:] > 0
+
+        model.activity_weights[1:][to_flip & active] = 0
+        model.activity_weights[1:][to_flip & ~active] = np.random.uniform(
+            0, 1, np.sum(to_flip & ~active)
+        )
 
         return model
 
