@@ -33,11 +33,11 @@ class CrossoverOperator:
             PromoterModel(
                 fst_copy(fst.rate_fn_matrix[:split])
                 + snd_copy(snd.rate_fn_matrix[split:])
-            ).with_active_states(
+            ).with_activity_weights(
                 np.concatenate(
                     (
-                        fst_copy(fst.active_states[:split]),
-                        snd_copy(snd.active_states[split:]),
+                        fst_copy(fst.activity_weights[:split]),
+                        snd_copy(snd.activity_weights[split:]),
                     )
                 )
             )
@@ -84,11 +84,11 @@ class CrossoverOperator:
             )
 
         return [
-            PromoterModel(child).with_active_states(
+            PromoterModel(child).with_activity_weights(
                 np.concatenate(
                     (
-                        fst_copy(fst.active_states[:split]),
-                        snd_copy(snd.active_states[split:]),
+                        fst_copy(fst.activity_weights[:split]),
+                        snd_copy(snd.activity_weights[split:]),
                     )
                 )
             )
@@ -326,5 +326,15 @@ class CrossoverOperator:
                                 (child + activity) % 2
                             ][edge_pair[::scale]]
 
-        # We assume there exists exactly one active state (the first state).
-        return [PromoterModel(child).with_active_states([0]) for child in children]
+        parents = (model, other)
+        return [
+            PromoterModel(child_matrix).with_activity_weights(
+                np.concatenate(
+                    (
+                        parents[i].activity_weights[sorted(vertex_sets[i][0])],
+                        parents[1 - i].activity_weights[sorted(vertex_sets[1 - i][1])],
+                    )
+                )
+            )
+            for (i, child_matrix) in enumerate(children)
+        ]

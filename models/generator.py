@@ -93,12 +93,12 @@ class ModelGenerator:
 
         # Must only have one active state
         if one_active_state:
-            active_states = np.zeros(states).astype(bool)
-            active_states[0] = True
+            active_weights = np.zeros(states)
+            active_weights[0] = 1
         else:
-            active_states = np.random.binomial(1, 0.5, states).astype(bool)
-
-        return PromoterModel(rate_fn_matrix).with_active_states(active_states)
+            active_weights = np.random.uniform(0, 1, states)
+            active_weights[1:] *= np.random.binomial(1, 0.33, states - 1)
+        return PromoterModel(rate_fn_matrix).with_activity_weights(active_weights)
 
     def is_valid(model: PromoterModel, verbose: bool = False) -> bool:
         # Check if all components are connected

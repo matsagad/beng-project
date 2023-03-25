@@ -14,7 +14,7 @@ class Preset:
                 [None, RF.Linear(a, tf_index)],
                 [RF.Constant(b), None],
             ]
-        ).with_active_states([1])
+        ).with_equal_active_states([1])
 
     @staticmethod
     def simple_hill(tf_index: int, a: float, b: float, c: float) -> PromoterModel:
@@ -23,7 +23,7 @@ class Preset:
                 [None, RF.Hill(a, b, tf_index)],
                 [RF.Constant(c), None],
             ]
-        ).with_active_states([1])
+        ).with_equal_active_states([1])
 
     @staticmethod
     def competing_activator(
@@ -35,7 +35,7 @@ class Preset:
                 [None, None, RF.Constant(b)],
                 [RF.Linear(a, tf_fst), RF.Linear(b, tf_snd), None],
             ]
-        ).with_active_states([0, 1])
+        ).with_equal_active_states([0, 1])
 
     @staticmethod
     def extended_competing_activator(
@@ -53,4 +53,4 @@ class Preset:
                     None,
                 ],
             ]
-        ).with_active_states([0, 1, 2])
+        ).with_equal_active_states([0, 1, 2])
