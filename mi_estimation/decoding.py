@@ -118,22 +118,22 @@ class DecodingEstimator(MIEstimator):
         CLASS_AXIS = 1
         trajectory = np.moveaxis(trajectory, CLASS_AXIS, 0)
 
-        active_states = model.active_states
+        activity_weights = model.activity_weights / np.sum(model.activity_weights)
         rich_states = []
         states = []
 
         for env_class in trajectory:
             # Sum probabilities of the active states
             rich_trajectory = np.sum(
-                env_class[self.origin - self.interval : self.origin, :, active_states],
+                activity_weights
+                * env_class[self.origin - self.interval : self.origin, :, :],
                 axis=2,
             ).T
             rich_states.extend(rich_trajectory)
 
             stress_trajectory = np.sum(
-                env_class[
-                    self.origin + 1 : self.origin + self.interval + 1, :, active_states
-                ],
+                activity_weights
+                * env_class[self.origin + 1 : self.origin + self.interval + 1, :, :],
                 axis=2,
             ).T
             states.append(
