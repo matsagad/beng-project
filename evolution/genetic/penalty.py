@@ -8,6 +8,9 @@ class ModelPenalty:
     MIN_STATES = 2
     MIN_EDGES = 2
 
+    def zero_penalty() -> Callable:
+        return lambda _, mi: mi
+
     def _old_state_penalty(k: float = 6.0) -> Callable:
         return lambda model, mi: max(
             0, mi - ModelPenalty.MAX_MI / (1 + k * math.exp(k - model.num_states))
@@ -20,6 +23,19 @@ class ModelPenalty:
             - ModelPenalty.MAX_MI
             * (
                 1 - math.exp(-(((model.num_states - ModelPenalty.MIN_STATES) / m) ** n))
+            ),
+        )
+
+    def reversed_state_penalty(
+        m: float = 8.0, n: float = 5.0, states: int = 5
+    ) -> Callable:
+        return lambda model, mi: max(
+            0,
+            mi
+            - max(
+                ModelPenalty.MAX_MI
+                * (1 - math.exp(-(((-model.num_states + states) / m) ** n))),
+                0,
             ),
         )
 

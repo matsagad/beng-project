@@ -18,6 +18,7 @@ class GeneticAlgorithmJob(Job):
             "elite_ratio": 0.2,
             "fixed_states": "False",
             "penalty_coeff": 8.0,
+            "reversed_penalty": "False",
             "target_states": -1,
             "p_edge": 0.5,
             "reversible": "True",
@@ -39,6 +40,7 @@ class GeneticAlgorithmJob(Job):
           elite_ratio       Percentage of population that are kept as elites
           fixed_states      Flag for if states should be fixed (False)
           penalty_coeff     Parameter for penalising models
+          reversed_penalty  Flag for if smaller models should be penalised
           target_states     Target number of states for models (-1)
           p_edge            Probability of edge connections at init population (0.5)
           reversible        Flag for if reactions should be reversible (True)
@@ -65,21 +67,23 @@ class GeneticAlgorithmJob(Job):
             MutationOperator.flip_tf,
             MutationOperator.add_noise,
         ]
-        
+
         if _args["one_active_state"] == "False":
             mutations.append(MutationOperator.flip_activity)
             mutations.append(MutationOperator.add_activity_noise)
 
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
-            scale_fitness = (
-                ModelPenalty.state_penalty(m=float(_args["penalty_coeff"]))
-                if int(_args["target_states"]) < 2
-                else ModelPenalty.balanced_state_penalty(
+            penalty_coeff = float(_args["penalty_coeff"])
+            if _args["reversed_penalty"] == "True":
+                scale_fitness = ModelPenalty.reversed_state_penalty(m=penalty_coeff)
+            elif int(_args["target_states"]) < 2:
+                scale_fitness = ModelPenalty.state_penalty(m=penalty_coeff)
+            else:
+                scale_fitness = ModelPenalty.balanced_state_penalty(
                     target_state=int(_args["target_states"]),
                     m=float(_args["penalty_coeff"]),
                 )
-            )
         else:
             crossover = CrossoverOperator.one_point_triangular_row_swap
             scale_fitness = lambda _, mi: mi
