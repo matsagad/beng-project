@@ -147,5 +147,7 @@ class GeneticAlgorithmJob(Job):
         with open(_args["output_file"], "wb") as f:
             pickle.dump(models, f)
             print(f"Cached best models at {f}.")
-            pickle.dump(stats, "stats_" + f)
-            print(f"Cached GA runner stats at stats_{f}.")
+
+        with open("stats_" + _args["output_file"], "wb") as f:
+            pickle.dump(stats, f)
+            print(f"Cached GA runner stats at {f}.")
