@@ -13,7 +13,7 @@ class SelectionOperator:
         # selection of fewer individuals than required when replace = False.
         # To solve this, we add a small epsilon. We choose 0.01 to be small
         # enough (0.5% relative to max score of 2).
-        
+
         perturbed_fitness = np.array(fitness_scores) + epsilon
         norm_fitness_scores = perturbed_fitness / sum(perturbed_fitness)
         return np.random.choice(
@@ -28,8 +28,9 @@ class SelectionOperator:
         parents = []
 
         for _ in range(n):
+            # Must choose k different individuals
             chosen = max(
-                np.random.choice(population, min(k, population), replace=replace)
+                np.random.choice(population, min(k, population), replace=False)
             )
             parents.append(ranked_indices[chosen])
 
