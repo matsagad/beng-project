@@ -18,10 +18,15 @@ Runs a genetic algorithm on a randomly generated initial population of models. A
 | `population`       | Number of models to consider in each generation |
 | `iterations`       | Number of generations to run |
 | `elite_ratio`      | Percentage of population that are kept as elites (0.2) |
-| `fixed_states`     | Flag for if states should be fixed (False) |
-| `penalty_coeff`    | Parameter for penalising models |
+| `p_edge`           | Probability of edge connections at init population (0.5) |
 | `target_states`    | Target number of states for models (-1) |
-| `p_edge`           | Probability of edge connections at init population (0.5) | 
+| `penalty__active`    | Flag for if models should be penalised |
+| `penalty__coeff`    | Hyperparameter for penalising models |
+| `penalty__reversed` | Flag for if smaller models should be penalised|
+| `fixed_states`     | Flag for if states should be fixed (False) |
+| `selection` | Selection operator (tournament, roulette)
+| `selection__replacement` | Flag for if selection should be done with replacement |
+| `selection__tournament_size` | Number of models sampled if tournament selection operator is chosen |
 | `reversible`       | Flag for if reactions should be reversible (True) |
 | `one_active_state` | Flag for if models should have only one active state (True) |
 | `n_processors`     | Number of processors to parallelise model evaluation |
