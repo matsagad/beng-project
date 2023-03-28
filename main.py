@@ -756,7 +756,7 @@ class Examples:
             runner = GeneticRunner(data, mutations, crossover, select)
 
             start = time.time()
-            models = runner.run(
+            models, stats = runner.run(
                 states=states,
                 population=population,
                 iterations=iterations,
@@ -824,17 +824,20 @@ class Examples:
             ]
             scale_fitness = ModelPenalty.state_penalty()
             crossover = CrossoverOperator.subgraph_swap
-            select = SelectionOperator.roulette_wheel
+            select = SelectionOperator.tournament
             runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
 
-            models = runner.run(
+            models, stats = runner.run(
                 states=states,
+                elite_ratio=0.1,
                 population=population,
                 iterations=iterations,
                 n_processors=min(10, population),
+                model_generator_params={"one_active_state": False},
                 verbose=True,
                 debug=True,
             )
+            print(stats["non_elite"])
 
             with open(fname, "wb") as f:
                 pickle.dump(models, f)
@@ -844,8 +847,8 @@ class Examples:
             import pickle
 
             data, _, _, _ = get_tf_data()
-            states = 3
-            population, iterations = 20, 20
+            states = 4
+            population, iterations = 10, 10
             fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
 
             with open(fname, "rb") as f:
@@ -1058,7 +1061,7 @@ def main():
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
     # Examples.PlottingVisuals.visualise_tf_concentration()
-    Examples.PlottingVisuals.visualise_activity()
+    # Examples.PlottingVisuals.visualise_activity()
     # Examples.PlottingVisuals.visualise_crossover()
     # Examples.PlottingVisuals.visualise_crossover_chart()
     # Examples.PlottingVisuals.visualise_crossbreeding()
@@ -1070,7 +1073,7 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    # Examples.Evolution.evolutionary_run()
+    Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.show_best_models()
     # Examples.Evolution.crossover_no_side_effects()
