@@ -911,6 +911,49 @@ class Examples:
                 pad_inches=0.25,
             )
 
+        def examine_evolutionary_run_stats():
+            import matplotlib.pyplot as plt
+            import pickle
+
+            fname = "stats_roulette_replace_models.dat"
+
+            with open(fname, "rb") as f:
+                stats = pickle.load(f)
+
+            model_groups = ("elite", "population", "non_elite")
+            stat_labels = ("avg_fitness", "avg_mi", "avg_num_states")
+            group_colors = ("firebrick", "seagreen", "royalblue")
+
+            fig, axes = plt.subplots(len(stat_labels), 1, sharex=True)
+            fig.tight_layout()
+
+            for label, ax in zip(stat_labels, axes):
+                for group, color in zip(model_groups, group_colors):
+                    ys = stats[group][label]
+                    ax.plot(range(len(ys)), ys, label=group, color=color)
+                    ax.set_xticks(list(range(len(ys))))
+                ax.set_ylabel(label)
+            plt.xlabel("Number of generations")
+
+            handles, labels = plt.gca().get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            fig.legend(
+                by_label.values(),
+                by_label.keys(),
+                loc="lower center",
+                ncol=len(model_groups),
+                bbox_to_anchor=[0.5, -0.1],
+            )
+
+            axes[0].set_title(fname, loc="center")
+
+            plt.savefig(
+                f"{Examples.CACHE_FOLDER}/evolutionary_run_stats.png",
+                dpi=200,
+                bbox_inches="tight",
+                pad_inches=0.15,
+            )
+
         def crossover_no_side_effects():
             model1 = PromoterModel(
                 [[None, RF.Constant([1.23])], [RF.Linear([2.345], [1]), None]]
@@ -1073,9 +1116,10 @@ def main():
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
-    Examples.Evolution.evolutionary_run()
+    # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.show_best_models()
+    Examples.Evolution.examine_evolutionary_run_stats()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()
     # Examples.Evolution.test_random_model_variance()
