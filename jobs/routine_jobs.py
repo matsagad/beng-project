@@ -101,7 +101,7 @@ class GeneticAlgorithmJob(Job):
             "p_edge": float(_args["p_edge"]),
         }
 
-        models = runner.run(
+        models, stats = runner.run(
             states=int(_args["states"]),
             population=int(_args["population"]),
             iterations=int(_args["iterations"]),
@@ -115,3 +115,5 @@ class GeneticAlgorithmJob(Job):
         with open(_args["output_file"], "wb") as f:
             pickle.dump(models, f)
             print(f"Cached best models at {f}.")
+            pickle.dump(stats, "stats_" + f)
+            print(f"Cached GA runner stats at stats_{f}.")

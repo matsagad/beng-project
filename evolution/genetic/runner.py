@@ -50,7 +50,7 @@ class GeneticRunner:
         model_generator_params: Dict[str, any] = dict(),
         verbose: bool = True,
         debug: bool = False,
-    ) -> None:
+    ) -> Tuple[List[PromoterModel], Dict[str, any]]:
         # Randomly initialise random models with specified number of states
         models = [
             (
@@ -62,12 +62,23 @@ class GeneticRunner:
             for _ in range(population)
         ]
 
-        # Model tuple access
+        # Access model tuples through the following indices
         _FITNESS, _MI, _RUNS, _MODEL = 0, 1, 2, 3
         _INDEX = _MODEL
 
+        # Get number of elites to keep and children to produce
         num_elites = int(population * elite_ratio)
         num_children = population - num_elites
+
+        # Statistics for running the genetic algorithm
+        labels = ("elite", "non_elite", "population")
+        runner_stats = {"avg_time_duration": []}
+        for label in labels:
+            runner_stats[label] = {
+                "avg_fitness": [],
+                "avg_mi": [],
+                "avg_num_states": [],
+            }
         best_stats = {"fitness": 0, "mi": 0, "num_states": 0, "hash": ""}
 
         num_digits = len(str(iterations))
@@ -130,48 +141,72 @@ class GeneticRunner:
                     + "\033[0m"
                 )
 
-            # Keep elites in next generation
+            # Get sorted list of models
             sorted_tuples = heapq.nsmallest(len(top_models), top_models)
-            sorted_indices = [tup[_INDEX] for tup in sorted_tuples]
-
-            elite_tuples = sorted_tuples[:num_elites]
-            elite_indices = set(sorted_indices[:num_elites])
-            elite = [
+            sorted_models = [
                 (-tup[_FITNESS], *tup[_MI:_INDEX], models[tup[_INDEX]][_MODEL])
-                for tup in elite_tuples
+                for tup in sorted_tuples
             ]
+
+            # Keep elites in next generation
+            elite = sorted_models[:num_elites]
 
             if debug:
                 print(
                     "\tTop Elites: "
                     + ", ".join(
                         [
-                            f"({-fitness:.3f}, {mi:.3f}, {models[i][_MODEL].num_states}, {models[i][_MODEL].hash()[2:8]})"
-                            for fitness, mi, _, i in elite_tuples
+                            f"({fitness:.3f}, {mi:.3f}, {model.num_states}, {model.hash()[2:8]})"
+                            for fitness, mi, _, model in elite
                         ]
                     )
                 )
-            if iter == iterations - 1:
-                return [models[i][_MODEL] for i in sorted_indices]
 
-            _fitness_scores = [-tup[_FITNESS] for tup in sorted_tuples]
-            _mi_scores = [tup[_MI] for tup in sorted_tuples]
+            if iter == iterations - 1:
+                return sorted_models, runner_stats
+
+            # Update runner statistics
+            for label, tuples in zip(
+                labels,
+                (sorted_models[:num_elites], sorted_models[num_elites:], sorted_models),
+            ):
+                runner_stats[label]["avg_fitness"].append(
+                    np.average([tup[_FITNESS] for tup in tuples])
+                )
+                runner_stats[label]["avg_mi"].append(
+                    np.average([tup[_MI] for tup in tuples])
+                )
+                runner_stats[label]["avg_num_states"].append(
+                    np.average([tup[_MODEL].num_states for tup in tuples])
+                )
+            runner_stats["avg_time_duration"].append(time.time() - start)
 
             if debug:
-                print(f"\tMean Population Fitness: {np.average(_fitness_scores):.3f}")
-                print(f"\tMean Population MI: {np.average(_mi_scores):.3f}")
-                print(
-                    f"\tAvg Number of States: {np.average([model[_MODEL].num_states for model in models]):.3f}"
-                )
-                print(f"\tIteration Duration: {(time.time() - start):.3f}s")
+                avg_fitness, avg_mi, avg_num_states = [
+                    runner_stats["population"][stat][-1]
+                    for stat in ("avg_fitness", "avg_mi", "avg_num_states")
+                ]
+                time_duration = runner_stats["avg_time_duration"][-1]
+
+                print(f"\tMean Population Fitness: {avg_fitness:.3f}")
+                print(f"\tMean Population MI: {avg_mi:.3f}")
+                print(f"\tAvg Number of States: {avg_num_states:.3f}")
+                print(f"\tIteration Duration: {time_duration:.3f}s")
 
             # Use selection operator to choose parents for next generation
+            sorted_indices = [tup[_INDEX] for tup in sorted_tuples]
+
             parents = self.select(
-                np.array(_fitness_scores)[np.argsort(sorted_indices)], n=num_children
+                np.array([tup[_FITNESS] for tup in sorted_models])[
+                    np.argsort(sorted_indices)
+                ],
+                n=num_children,
             )
             np.random.shuffle(parents)
 
             # Crossover parents and mutate their offspring
+            elite_indices = set(sorted_indices[:num_elites])
+
             children = []
             for parent1, parent2 in zip(
                 parents[::2],
