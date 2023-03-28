@@ -12,18 +12,26 @@ import pickle
 class GeneticAlgorithmJob(Job):
     def __init__(self, verbose: bool):
         self.default_args = {
+            # Initial population
             "states": 2,
             "population": 10,
             "iterations": 10,
             "elite_ratio": 0.2,
-            "fixed_states": "False",
-            "no_penalty": "False",
-            "penalty_coeff": 8.0,
-            "reversed_penalty": "False",
-            "target_states": -1,
             "p_edge": 0.5,
+            # Penalty functions
+            "target_states": -1,
+            "penalty__active": "True",
+            "penalty__coeff": 8.0,
+            "penalty__reversed": "False",
+            # Operators
+            "fixed_states": "False",
+            "selection": "tournament",
+            "selection__replacement": "True",
+            "selection__tournament_size": 3,
+            # Constraints
             "reversible": "True",
             "one_active_state": "True",
+            # I/O and hardware
             "n_processors": 1,
             "cache_folder": "cache",
             "output_file": "models.dat",
@@ -35,18 +43,30 @@ class GeneticAlgorithmJob(Job):
     def run(self, args: Dict[str, any]) -> None:
         """
         Args:
+          # Initial population
           states            Number of states the model population starts with
           population        Number of models to consider in each generation
           iterations        Number of generations to run
           elite_ratio       Percentage of population that are kept as elites
-          fixed_states      Flag for if states should be fixed (False)
-          no_penalty        Flag for if models should be penalised
-          penalty_coeff     Parameter for penalising models
-          reversed_penalty  Flag for if smaller models should be penalised
-          target_states     Target number of states for models (-1)
           p_edge            Probability of edge connections at init population (0.5)
+
+          # Penalty functions
+          target_states     Target number of states for models (-1)
+          penalty__active   Flag for if models should be penalised
+          penalty__coeff    Hyperparameter for penalising models
+          penalty__reversed Flag for if smaller models should be penalised
+
+          # Genetic operators
+          fixed_states               Flag for if states should be fixed (False)
+          selection                  Selection operator (tournament, roulette)
+          selection__replacement     Flag for if selection should be done with replacement
+          selection__tournament_size Number of models sampled if tournament selection operator is chosen
+
+          # Constraints
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
+
+          # I/O and hardware
           n_processors      Number of processors to parallelise model evaluation
           cache_folder      Path to cache folder where data may be cached
           output_file       Name of file to output model data
@@ -76,23 +96,35 @@ class GeneticAlgorithmJob(Job):
 
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
-            penalty_coeff = float(_args["penalty_coeff"])
-            if _args["no_penalty"] == "True":
+            penalty_coeff = float(_args["penalty__coeff"])
+            if _args["penalty__active"] == "False":
                 scale_fitness = lambda _, mi: mi
-            elif _args["reversed_penalty"] == "True":
+            elif _args["penalty__reversed"] == "True":
                 scale_fitness = ModelPenalty.reversed_state_penalty(m=penalty_coeff)
             elif int(_args["target_states"]) < 2:
                 scale_fitness = ModelPenalty.state_penalty(m=penalty_coeff)
             else:
                 scale_fitness = ModelPenalty.balanced_state_penalty(
                     target_state=int(_args["target_states"]),
-                    m=float(_args["penalty_coeff"]),
+                    m=penalty_coeff,
                 )
         else:
             crossover = CrossoverOperator.one_point_triangular_row_swap
             scale_fitness = lambda _, mi: mi
 
-        select = SelectionOperator.roulette_wheel
+        with_replacement = _args["selection__replacement"] == "True"
+        if _args["selection"] == "tournament":
+            select = lambda *args, **kwargs: SelectionOperator.tournament(
+                *args,
+                **kwargs,
+                k=int(_args["selection__tournament_size"]),
+                replace=with_replacement,
+            )
+        else:
+            select = lambda *args, **kwargs: SelectionOperator.roulette_wheel(
+                *args, **kwargs, replace=with_replacement
+            )
+
         runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
 
         mg_params = {
