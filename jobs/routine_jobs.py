@@ -17,6 +17,7 @@ class GeneticAlgorithmJob(Job):
             "iterations": 10,
             "elite_ratio": 0.2,
             "fixed_states": "False",
+            "no_penalty": "False",
             "penalty_coeff": 8.0,
             "reversed_penalty": "False",
             "target_states": -1,
@@ -39,6 +40,7 @@ class GeneticAlgorithmJob(Job):
           iterations        Number of generations to run
           elite_ratio       Percentage of population that are kept as elites
           fixed_states      Flag for if states should be fixed (False)
+          no_penalty        Flag for if models should be penalised
           penalty_coeff     Parameter for penalising models
           reversed_penalty  Flag for if smaller models should be penalised
           target_states     Target number of states for models (-1)
@@ -75,7 +77,9 @@ class GeneticAlgorithmJob(Job):
         if _args["fixed_states"] == "False":
             crossover = CrossoverOperator.subgraph_swap
             penalty_coeff = float(_args["penalty_coeff"])
-            if _args["reversed_penalty"] == "True":
+            if _args["no_penalty"] == "True":
+                scale_fitness = lambda _, mi: mi
+            elif _args["reversed_penalty"] == "True":
                 scale_fitness = ModelPenalty.reversed_state_penalty(m=penalty_coeff)
             elif int(_args["target_states"]) < 2:
                 scale_fitness = ModelPenalty.state_penalty(m=penalty_coeff)
