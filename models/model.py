@@ -106,22 +106,34 @@ class PromoterModel:
     ) -> None:
         from igraph import Graph, plot
         import matplotlib.pyplot as plt
+        from matplotlib.colors import LinearSegmentedColormap, rgb2hex
         from matplotlib import rcParams
 
         # rcParams["text.usetex"] = True
 
         # Colors are from the "marumaru gum" palette by sukinapan!
         palette = ["#96beb1", "#fda9a9", "#f3eded"]
+        num_colors = 10
+        cmap = LinearSegmentedColormap.from_list(
+            "redToGreen", [(0, palette[1]), (1, palette[0])], N=num_colors
+        )
 
         graph = Graph(directed=True)
         graph.add_vertices(self.num_states)
-        
+
         active_states = self.activity_weights > 0
-        activity_weights = self.activity_weights[active_states] / np.sum(self.activity_weights)
+        activity_weights = self.activity_weights[active_states] / np.sum(
+            self.activity_weights
+        )
 
         properties = np.zeros((self.num_states, 3), dtype=object)
-        properties[active_states, 0] = [f"$\\underset{{ {activity_weights[i]:.2f} }}{{ A_{{ {i} }} }}$" for i in range(sum(active_states))]
-        properties[active_states, 1] = palette[0]
+        properties[active_states, 0] = [
+            f"$\\underset{{ {activity_weights[i]:.2f} }}{{ A_{{ {i} }} }}$"
+            for i in range(sum(active_states))
+        ]
+        properties[active_states, 1] = [
+            rgb2hex(cmap(weight)) for weight in activity_weights
+        ]
         properties[active_states, 2] = 9
         properties[~active_states, 0] = [f"$I_{i}$" for i in range(sum(~active_states))]
         properties[~active_states, 1] = palette[1]
