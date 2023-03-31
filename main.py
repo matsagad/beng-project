@@ -158,8 +158,10 @@ class Examples:
         def visualise_tf_concentration():
             import matplotlib.pyplot as plt
 
-            data, origin, time_delta, tf_names = get_tf_data(scale=True, local_scale=True)
-            
+            data, origin, time_delta, tf_names = get_tf_data(
+                scale=True, local_scale=True
+            )
+
             num_envs, num_tfs = data.shape[:2]
 
             fig, axes = plt.subplots(
@@ -196,7 +198,7 @@ class Examples:
             env_labels = ["rich", "carbon", "osmotic", "oxidative"]
 
             for ax, label in zip(fst_row, env_labels):
-                ax.xaxis.set_label_position('top')
+                ax.xaxis.set_label_position("top")
                 ax.set_xlabel(label)
 
             plt.savefig(f"{Examples.CACHE_FOLDER}/tf_conc.png", dpi=200, pad_inches=0.2)
@@ -270,8 +272,12 @@ class Examples:
         def visualise_crossover():
             import matplotlib.pyplot as plt
 
-            model1 = ModelGenerator.get_random_model(5, p_edge=0.1, one_active_state=False)
-            model2 = ModelGenerator.get_random_model(3, p_edge=0.1, one_active_state=False)
+            model1 = ModelGenerator.get_random_model(
+                5, p_edge=0.1, one_active_state=False
+            )
+            model2 = ModelGenerator.get_random_model(
+                3, p_edge=0.1, one_active_state=False
+            )
             crossover = CrossoverOperator.subgraph_swap
 
             print("beginning swap")
@@ -441,9 +447,9 @@ class Examples:
 
             plt.plot(states, res[0], label="Vectorised $O(n)$")
             plt.plot(states, res[1], label="Non-vectorised $O(log(n))$")
-            
+
             plt.xticks(states)
-            
+
             plt.ylabel("Time (s)")
             plt.xlabel("Number of States")
             plt.legend()
@@ -475,26 +481,37 @@ class Examples:
                 print(f"MI: {mi_score}")
 
         def max_mi_estimation():
+            import itertools
+
             data, origin, _, tf_names = get_tf_data()
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            reps = 10
             dummy_model = PromoterModel.dummy()
+            reps = 10
 
-            est = DecodingEstimator(origin, interval, "naive_bayes")
+            est = DecodingEstimator(origin, 30, "naive_bayes")
             est.parallel = True
-            print("| TF\t| MI\t|")
-            for tf_index, tf in enumerate(tf_names):
+            tf_split_data = []
+            num_tfs = len(tf_names)
+
+            for tf_index in range(num_tfs):
                 TIME_AXIS = 2
                 raw_data = np.moveaxis(data[:, tf_index], TIME_AXIS, 0)
                 raw_data = raw_data.reshape((*raw_data.shape, 1))
+                tf_split_data.append(est._split_classes(dummy_model, raw_data))
 
-                # Estimate MI
-                split_data = est._split_classes(dummy_model, raw_data)
-
-                total = 0
-                for _ in range(reps):
-                    total += est._estimate(split_data, add_noise=False)
-                print(f"| {tf}\t| {(total/reps):.3f}\t|")
+            print(f"|\033[1m{'TF GROUP':^25}\033[0m|\033[1m{'MI':^25}\033[0m|")
+            print(("|" + "-" * 25) * 2 + "|")
+            for group_size in range(1, num_tfs + 1):
+                for comb in itertools.combinations(list(range(num_tfs)), group_size):
+                    comb_split_data = np.concatenate(
+                        [tf_split_data[tf] for tf in comb], axis=2
+                    )
+                    total = 0
+                    for _ in range(reps):
+                        total += est._estimate(comb_split_data, halving=False)
+                    print(
+                        f"|{','.join(tf_names[tf] for tf in comb):^25}|{(total/reps):^25.3f}|"
+                    )
 
         def mi_estimation_table():
             # (for simple model only)
@@ -676,7 +693,9 @@ class Examples:
             plt.legend(loc="upper right")
             plt.savefig(f"{Examples.CACHE_FOLDER}/mi_distribution.png", dpi=200)
 
-        def _pip_evaluate(pip: OneStepDecodingPipeline, model: PromoterModel, index: int) -> Tuple[float, int]:
+        def _pip_evaluate(
+            pip: OneStepDecodingPipeline, model: PromoterModel, index: int
+        ) -> Tuple[float, int]:
             mi = pip.evaluate(model, verbose=False)
             return index, mi
 
@@ -712,7 +731,7 @@ class Examples:
                     mi_score, i = future.result()
                     print(f"{reps}-{i}: {mi_score:.3f}")
             print("\n" * 5 + f"Took {time.time() - start:.3f}s" + "\n" * 5)
-            
+
             # Nested Parallelism
             import dask
             from dask.distributed import Client
@@ -931,7 +950,7 @@ class Examples:
                 for group, color in zip(model_groups, group_colors):
                     ys = stats[group][label]
                     ax.plot(range(len(ys)), ys, label=group, color=color)
-                    ax.set_xticks(list(range(len(ys))))
+                    ax.set_xticks(list(range(1, len(ys), max(1, (len(ys) - 1) // 10))))
                 ax.set_ylabel(label)
             plt.xlabel("Number of generations")
 
@@ -1091,7 +1110,7 @@ class Examples:
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
-    # Examples.Benchmarking.max_mi_estimation()
+    Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
     # Examples.Benchmarking.mi_vs_repeated_intervals()
@@ -1119,7 +1138,7 @@ def main():
     # Examples.Evolution.evolutionary_run()
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.show_best_models()
-    Examples.Evolution.examine_evolutionary_run_stats()
+    # Examples.Evolution.examine_evolutionary_run_stats()
     # Examples.Evolution.crossover_no_side_effects()
     # Examples.Evolution.models_generated_are_valid()
     # Examples.Evolution.test_random_model_variance()
