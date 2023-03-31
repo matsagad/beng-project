@@ -180,6 +180,7 @@ class DecodingEstimator(MIEstimator):
         n_bootstraps: int = 25,
         c_interval: int = [0.25, 0.75],
         verbose: bool = False,
+        halving: bool = True,
         add_noise: bool = False,
         smoothen: bool = False,
     ) -> float:
@@ -231,7 +232,7 @@ class DecodingEstimator(MIEstimator):
 
         # Tune pipeline hyperparameters
         num_samples = len(y_val)
-        n_PCA_range = range(1, 1 + min(num_samples, ts_duration))
+        n_PCA_range = np.linspace(0.95, 0.99, 5)
         _prefix = "classifier__"
         params = [
             {"project__n_components": n_PCA_range},
@@ -248,7 +249,7 @@ class DecodingEstimator(MIEstimator):
         )
 
         ## Grid search
-        grid_pipeline = HalvingGridSearchCV(
+        grid_pipeline = (HalvingGridSearchCV if halving else GridSearchCV)(
             pipe,
             params,
             n_jobs=(-1 if self.parallel else 1),
