@@ -38,10 +38,17 @@ class RateFunction:
 
     class Linear(Function):
         def evaluate(self, exo_states: NDArray) -> float:
-            return self.rates[0] * exo_states[self.tfs[0]]
+            return sum(rate * exo_states[tf] for rate, tf in zip(self.rates, self.tfs))
 
         def str(self) -> str:
-            return f"${self.rates[0]:.3f} \cdot TF_{{{self.tfs[0]}}}$"
+            return (
+                "$"
+                + "+".join(
+                    f"{rate:.3f} \cdot TF_{{{tf}}}"
+                    for rate, tf in zip(self.rates, self.tfs)
+                )
+                + "$"
+            )
 
         def num_params() -> Tuple[int, int]:
             return 1, 1
