@@ -484,11 +484,14 @@ class Examples:
             import itertools
 
             data, origin, _, tf_names = get_tf_data()
-            interval = OneStepDecodingPipeline.FIXED_INTERVAL
             dummy_model = PromoterModel.dummy()
-            reps = 10
 
-            est = DecodingEstimator(origin, 30, "naive_bayes")
+            reps = 10
+            interval = 30
+            classifier = "naive_bayes"
+            random_mesh = True
+
+            est = DecodingEstimator(origin, interval, classifier)
             est.parallel = True
             tf_split_data = []
             num_tfs = len(tf_names)
@@ -499,6 +502,7 @@ class Examples:
                 raw_data = raw_data.reshape((*raw_data.shape, 1))
                 tf_split_data.append(est._split_classes(dummy_model, raw_data))
 
+            print(f"{classifier}: interval {interval}, {reps} reps")
             print(f"|\033[1m{'TF GROUP':^25}\033[0m|\033[1m{'MI':^25}\033[0m|")
             print(("|" + "-" * 25) * 2 + "|")
             for group_size in range(1, num_tfs + 1):
@@ -506,9 +510,23 @@ class Examples:
                     comb_split_data = np.concatenate(
                         [tf_split_data[tf] for tf in comb], axis=2
                     )
+                    if random_mesh:
+                        num_cells = comb_split_data.shape[1]
+                        indices = np.random.choice(
+                            group_size, (num_cells, interval)
+                        ) * interval + np.arange(interval)
+
+                        ## To randomly choose across all cell-samples
+                        # num_envs = comb_split_data.shape[0]
+                        # env_indices, cell_indices, _ = np.indices((num_envs, num_cells, interval))
+                        # comb_split_data = comb_split_data[env_indices, cell_indices, indices]
+                        
+                        comb_split_data = comb_split_data[:, :, indices]
                     total = 0
                     for _ in range(reps):
-                        total += est._estimate(comb_split_data, halving=False)
+                        total += est._estimate(
+                            comb_split_data, halving=False
+                        )
                     print(
                         f"|{','.join(tf_names[tf] for tf in comb):^25}|{(total/reps):^25.3f}|"
                     )
@@ -954,6 +972,13 @@ class Examples:
                 ax.set_ylabel(label)
             plt.xlabel("Number of generations")
 
+            if include_duration:
+                duration_states = stats["avg_time_duration"]
+                axes[-1].plot(
+                    range(len(duration_states)), duration_states, color=group_colors[-1]
+                )
+                axes[-1].set_ylabel("duration")
+
             handles, labels = plt.gca().get_legend_handles_labels()
             by_label = dict(zip(labels, handles))
             fig.legend(
@@ -964,10 +989,10 @@ class Examples:
                 bbox_to_anchor=[0.5, -0.1],
             )
 
-            axes[0].set_title(fname, loc="center")
+            axes[0].set_title(f"{job_id}: tournament, replace, size of 4", loc="center")
 
             plt.savefig(
-                f"{Examples.CACHE_FOLDER}/evolutionary_run_stats.png",
+                f"{Examples.CACHE_FOLDER}/{job_id}_evolutionary_run_stats.png",
                 dpi=200,
                 bbox_inches="tight",
                 pad_inches=0.15,
