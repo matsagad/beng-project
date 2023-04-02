@@ -400,6 +400,100 @@ class Examples:
                 pad_inches=0.1,
             )
 
+        def visualise_tf_grid_activity():
+            data, _, time_delta, tf_names = get_tf_data()
+            num_envs, num_tfs, num_cells, num_times = data.shape
+
+            from matplotlib.animation import FuncAnimation
+            import matplotlib.pyplot as plt
+
+            fig, axes = plt.subplots(num_tfs, num_envs, sharex=True, sharey=True, figsize=(num_envs, num_tfs))
+            fig.tight_layout()
+            plt.subplots_adjust(wspace=0, hspace=0)
+            for row in axes:
+                for ax in row:
+                    ax.imshow(np.zeros((10, 10)), 
+                    aspect="auto", vmin=0, vmax=1)
+                    plt.setp(ax.get_xticklabels(), visible=False)
+                    plt.setp(ax.get_yticklabels(), visible=False)
+                    ax.tick_params(axis='both', which='both', length=0)
+
+            env_labels = ["carbon", "osmotic", "oxidative"]
+
+            for ax, label in zip(axes[0], env_labels):
+                ax.axis("on")
+                ax.xaxis.set_label_position("top")
+                ax.set_xlabel(label)
+
+            for i, row in enumerate(axes):
+                row[0].set_ylabel(tf_names[i])
+
+            im = fig.show()
+
+            def _init():
+                return [im]
+
+            def _animate(t):
+                for i, row in enumerate(axes):
+                    for j, ax in enumerate(row):
+                        ax.imshow(data[j, i, :100, t].reshape((10, 10)),  
+                    aspect="auto", vmin=0, vmax=1)
+                return [im]
+
+            
+            animation = FuncAnimation(
+                fig, init_func=_init, func=_animate, frames=num_times, interval=20, blit=False
+            )
+            animation.save("tf_grid_activity.gif", writer="imagemagick")
+
+        def visualise_grid_activity():
+            data, _, time_delta, tf_names = get_tf_data()
+            num_envs, num_tfs, num_cells, num_times = data.shape
+            replicates = 10
+            grid_dims = int((num_cells * replicates) ** 0.5)
+
+            model = Examples.models[2]
+            
+            trajectories = OneStepSimulator(data, time_delta, replicates=replicates).simulate(model)
+            activity_weights = model.activity_weights / np.sum(model. activity_weights)
+            activity = np.sum(activity_weights * trajectories, axis=3)
+            
+            from matplotlib.animation import FuncAnimation
+            import matplotlib.pyplot as plt
+
+            fig, axes = plt.subplots(1, num_envs, sharex=True, sharey=True, figsize=(2 * num_envs, 2))
+            fig.tight_layout()
+            plt.subplots_adjust(wspace=0, hspace=0)
+            
+            for i, ax in enumerate(axes):
+                ax.imshow(np.zeros(grid_dims, grid_dims))
+                plt.setp(ax.get_xticklabels(), visible=False)
+                plt.setp(ax.get_yticklabels(), visible=False)
+                ax.tick_params(axis='both', which='both', length=0)
+
+            env_labels = ["carbon", "osmotic", "oxidative"]
+
+            for ax, label in zip(axes, env_labels):
+                ax.xaxis.set_label_position("top")
+                ax.set_xlabel(label)
+
+            im = fig.show()
+
+            def _animate(t):
+                for i, ax in enumerate(axes):
+                    ax.imshow(activity[t, i, :grid_dims * grid_dims].reshape((grid_dims, grid_dims)),  
+                    aspect="auto", vmin=0, vmax=1)
+                return [im]
+
+            def _init():
+                return _animate(0)
+
+            animation = FuncAnimation(
+                fig, init_func=_init, func=_animate, frames=num_times, interval=20, blit=False
+            )
+            animation.save("grid_activity.gif", writer="imagemagick")
+
+
     class Benchmarking:
         def matrix_exponentials():
             data, _, _, _ = get_tf_data()
@@ -520,13 +614,11 @@ class Examples:
                         # num_envs = comb_split_data.shape[0]
                         # env_indices, cell_indices, _ = np.indices((num_envs, num_cells, interval))
                         # comb_split_data = comb_split_data[env_indices, cell_indices, indices]
-                        
+
                         comb_split_data = comb_split_data[:, :, indices]
                     total = 0
                     for _ in range(reps):
-                        total += est._estimate(
-                            comb_split_data, halving=False
-                        )
+                        total += est._estimate(comb_split_data, halving=False)
                     print(
                         f"|{','.join(tf_names[tf] for tf in comb):^25}|{(total/reps):^25.3f}|"
                     )
@@ -1135,7 +1227,7 @@ class Examples:
 def main():
     # Examples.Benchmarking.trajectory()
     # Examples.Benchmarking.mi_estimation()
-    Examples.Benchmarking.max_mi_estimation()
+    # Examples.Benchmarking.max_mi_estimation()
     # Examples.Benchmarking.mi_estimation_table()
     # Examples.Benchmarking.mi_vs_interval()
     # Examples.Benchmarking.mi_vs_repeated_intervals()
@@ -1152,6 +1244,8 @@ def main():
     # Examples.PlottingVisuals.visualise_crossover()
     # Examples.PlottingVisuals.visualise_crossover_chart()
     # Examples.PlottingVisuals.visualise_crossbreeding()
+    # Examples.PlottingVisuals.visualise_tf_grid_activity()
+    Examples.PlottingVisuals.visualise_grid_activity()
 
     # Examples.UsingThePipeline.pipeline_example()
 
