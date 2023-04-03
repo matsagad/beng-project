@@ -18,7 +18,13 @@ import json
 import numpy as np
 import sys
 import time
+import pickle
 
+def unpickle(fname):
+    object = None
+    with open(fname, "rb") as f:
+        object = pickle.load(f)
+    return object
 
 def get_tf_data(**kwargs):
     args = sys.argv[1:]
@@ -218,8 +224,13 @@ class Examples:
                 ]
             ).with_equal_active_states([0, 1])
             model = ModelGenerator.get_random_model(5, one_active_state=False)
-            print(model.activity_weights)
-            
+
+            fname = "jobs/7324363_models.dat"
+
+            models = unpickle(fname)
+            _, _, _, model = models[0]
+
+            print(model.num_states)
             replicates = 10
             interval = OneStepDecodingPipeline.FIXED_INTERVAL
             est = DecodingEstimator(origin, interval, "naive_bayes")
@@ -746,13 +757,12 @@ class Examples:
             n_processors = 10
 
             fname = f"mi_dist_rand_{iters}_{'_'.join(map(str,rep_count))}.dat"
-            import pickle, os
+            import os
             from concurrent.futures import ProcessPoolExecutor, as_completed
 
             if os.path.isfile(fname):
                 print("Using cached MI distribution.")
-                with open(fname, "rb") as f:
-                    hist_map = pickle.load(f)
+                hist_map = unpickle(fname)
             else:
                 hist_map = dict()
 
@@ -896,15 +906,25 @@ class Examples:
             print(time.time() - start)
 
     class Optimisation:
-        def grid_search():
+        def grid_search_simple():
             data, _, _, tf_names = get_tf_data()
             gs = GridSearch()
             gs.optimise_simple(data, tf_names)
 
-        def particle_swarm():
+        def particle_swarm_simple():
             data, _, _, _ = get_tf_data()
             ps = ParticleSwarm()
             ps.optimise_simple(data)
+        
+        def particle_swarm():
+            data, _, _, _ = get_tf_data()
+            ps = ParticleSwarm()
+
+            fname = "jobs/7324363_models.dat"
+            models = unpickle(fname)
+            _, _, _, model = models[0]
+
+            ps.optimise(data, model, start_at_pos=True)
 
     class Evolution:
         def genetic_simple():
@@ -935,8 +955,6 @@ class Examples:
                 )
 
         def evolutionary_run():
-            import pickle
-
             data, _, _, _ = get_tf_data()
 
             states = 8
@@ -1245,12 +1263,13 @@ def main():
     # Examples.PlottingVisuals.visualise_crossover_chart()
     # Examples.PlottingVisuals.visualise_crossbreeding()
     # Examples.PlottingVisuals.visualise_tf_grid_activity()
-    Examples.PlottingVisuals.visualise_grid_activity()
+    # Examples.PlottingVisuals.visualise_grid_activity()
 
     # Examples.UsingThePipeline.pipeline_example()
 
-    # Examples.Optimisation.grid_search()
-    # Examples.Optimisation.particle_swarm()
+    # Examples.Optimisation.grid_search_simple()
+    # Examples.Optimisation.particle_swarm_simple()
+    Examples.Optimisation.particle_swarm()
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
