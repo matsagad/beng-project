@@ -112,10 +112,10 @@ class PromoterModel:
         # rcParams["text.usetex"] = True
 
         # Colors are from the "marumaru gum" palette by sukinapan!
-        palette = ["#96beb1", "#fda9a9", "#f3eded"]
+        palette = ["#96beb1", "#fda9a9", "#f3eded", "#82939b", "#b9eedc"]
         num_colors = 10
         cmap = LinearSegmentedColormap.from_list(
-            "redToGreen", [(0, palette[1]), (1, palette[0])], N=num_colors
+            "redToGreen", [(0, palette[1]), (1, palette[4])], N=num_colors
         )
 
         graph = Graph(directed=True)
@@ -158,7 +158,7 @@ class PromoterModel:
             "background": None,
             "edge_label": None if small_size else graph.es["label"],
             "edge_width": 1,
-            "edge_background": "white" if transparent else palette[2],
+            "edge_background": None if transparent else palette[2],
             "vertex_label": None if small_size else graph.vs["label"],
             "bbox": (200, 200),
             "layout": graph.layout("kk"),
