@@ -418,16 +418,17 @@ class Examples:
             from matplotlib.animation import FuncAnimation
             import matplotlib.pyplot as plt
 
-            fig, axes = plt.subplots(num_tfs, num_envs, sharex=True, sharey=True, figsize=(num_envs, num_tfs))
+            fig, axes = plt.subplots(
+                num_tfs, num_envs, sharex=True, sharey=True, figsize=(num_envs, num_tfs)
+            )
             fig.tight_layout()
             plt.subplots_adjust(wspace=0, hspace=0)
             for row in axes:
                 for ax in row:
-                    ax.imshow(np.zeros((10, 10)), 
-                    aspect="auto", vmin=0, vmax=1)
+                    ax.imshow(np.zeros((10, 10)), aspect="auto", vmin=0, vmax=1)
                     plt.setp(ax.get_xticklabels(), visible=False)
                     plt.setp(ax.get_yticklabels(), visible=False)
-                    ax.tick_params(axis='both', which='both', length=0)
+                    ax.tick_params(axis="both", which="both", length=0)
 
             env_labels = ["carbon", "osmotic", "oxidative"]
 
@@ -447,13 +448,21 @@ class Examples:
             def _animate(t):
                 for i, row in enumerate(axes):
                     for j, ax in enumerate(row):
-                        ax.imshow(data[j, i, :100, t].reshape((10, 10)),  
-                    aspect="auto", vmin=0, vmax=1)
+                        ax.imshow(
+                            data[j, i, :100, t].reshape((10, 10)),
+                            aspect="auto",
+                            vmin=0,
+                            vmax=1,
+                        )
                 return [im]
 
-            
             animation = FuncAnimation(
-                fig, init_func=_init, func=_animate, frames=num_times, interval=20, blit=False
+                fig,
+                init_func=_init,
+                func=_animate,
+                frames=num_times,
+                interval=20,
+                blit=False,
             )
             animation.save("tf_grid_activity.gif", writer="imagemagick")
 
@@ -464,23 +473,28 @@ class Examples:
             grid_dims = int((num_cells * replicates) ** 0.5)
 
             model = Examples.models[2]
-            
-            trajectories = OneStepSimulator(data, time_delta, replicates=replicates).simulate(model)
-            activity_weights = model.activity_weights / np.sum(model. activity_weights)
+            _, _, _, model = unpickle("jobs/7324363_models.dat")[0]
+
+            trajectories = OneStepSimulator(
+                data, time_delta, replicates=replicates
+            ).simulate(model)
+            activity_weights = model.activity_weights / np.sum(model.activity_weights)
             activity = np.sum(activity_weights * trajectories, axis=3)
-            
+
             from matplotlib.animation import FuncAnimation
             import matplotlib.pyplot as plt
 
-            fig, axes = plt.subplots(1, num_envs, sharex=True, sharey=True, figsize=(2 * num_envs, 2))
+            fig, axes = plt.subplots(
+                1, num_envs, sharex=True, sharey=True, figsize=(2 * num_envs, 2)
+            )
             fig.tight_layout()
             plt.subplots_adjust(wspace=0, hspace=0)
-            
+
             for i, ax in enumerate(axes):
-                ax.imshow(np.zeros(grid_dims, grid_dims))
+                ax.imshow(np.zeros((grid_dims, grid_dims)))
                 plt.setp(ax.get_xticklabels(), visible=False)
                 plt.setp(ax.get_yticklabels(), visible=False)
-                ax.tick_params(axis='both', which='both', length=0)
+                ax.tick_params(axis="both", which="both", length=0)
 
             env_labels = ["carbon", "osmotic", "oxidative"]
 
@@ -492,18 +506,28 @@ class Examples:
 
             def _animate(t):
                 for i, ax in enumerate(axes):
-                    ax.imshow(activity[t, i, :grid_dims * grid_dims].reshape((grid_dims, grid_dims)),  
-                    aspect="auto", vmin=0, vmax=1)
+                    ax.imshow(
+                        activity[t, i, : grid_dims * grid_dims].reshape(
+                            (grid_dims, grid_dims)
+                        ),
+                        aspect="auto",
+                        vmin=0,
+                        vmax=1,
+                    )
                 return [im]
 
             def _init():
                 return _animate(0)
 
             animation = FuncAnimation(
-                fig, init_func=_init, func=_animate, frames=num_times, interval=20, blit=False
+                fig,
+                init_func=_init,
+                func=_animate,
+                frames=num_times,
+                interval=20,
+                blit=False,
             )
             animation.save("grid_activity.gif", writer="imagemagick")
-
 
     class Benchmarking:
         def matrix_exponentials():
@@ -991,46 +1015,58 @@ class Examples:
                 print("Cached best models")
 
         def load_best_models():
-            import pickle
-
             data, _, _, _ = get_tf_data()
+
             states = 4
             population, iterations = 10, 10
-            fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
+            # fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
 
-            with open(fname, "rb") as f:
-                models = pickle.load(f)
+            reps = 10
+            fname = "jobs/7324363_models.dat"
+            models = unpickle(fname)
 
             pip = OneStepDecodingPipeline(
-                data, realised=True, replicates=10, classifier_name="naive_bayes"
+                data, realised=True, replicates=10, classifier_name="svm"
             )
             pip.set_parallel()
 
-            for i, model in enumerate(models[:3]):
-                print(pip.evaluate(model))
-                model.visualise(
-                    save=True,
-                    fname=f"cache/evolution/{states}_{population}_{iterations}_{i}.png",
-                )
+            for i, (_, _, _, model) in enumerate(models[:3]):
+                avg_mi = 0
+                for _ in range(reps):
+                    avg_mi += pip.evaluate(model)
+                avg_mi /= reps
+                print(f"Model: {model.hash()}, MI: {avg_mi:.3f}")
+                # model.visualise(
+                #     save=True,
+                #     fname=f"cache/evolution/{states}_{population}_{iterations}_{i}.png",
+                # )
 
         def show_best_models():
             import matplotlib.pyplot as plt
-            import pickle
 
             data, _, _, _ = get_tf_data()
 
-            num_models = 3
+            rows, cols = 2, 5
+            num_models = rows * cols
+            reps = 3
+
             states = 6
-            penalty_coeff = 12
-            population, iterations = 500, 500
-            fname = "jobs/7163286_models.dat"
+            penalty = False
+            penalty_coeff = 0
+            population, iterations = 500, 1000
+            fname = "jobs/7324363_models.dat"
 
-            scale_fitness = ModelPenalty._old_state_penalty(penalty_coeff)
+            scale_fitness = (
+                ModelPenalty.state_penalty(penalty_coeff)
+                if penalty
+                else lambda _, mi: mi
+            )
 
-            with open(fname, "rb") as f:
-                models = pickle.load(f)
+            models = unpickle(fname)
 
-            fig, axes = plt.subplots(1, num_models, sharex=True, figsize=(12, 4))
+            fig, axes = plt.subplots(
+                rows, cols, sharex=True, sharey=True, figsize=(4 * cols, 4 * rows)
+            )
             fig.tight_layout()
             fig.suptitle(
                 f"GA: {states}-states start, population: {population}, generations: {iterations}"
@@ -1041,37 +1077,56 @@ class Examples:
             )
             pip.set_parallel()
 
-            plt.subplots_adjust(wspace=0, hspace=0)
+            plt.subplots_adjust(wspace=0.1, hspace=0.1)
 
-            for model, ax in zip(models[:num_models], axes):
-                mi = pip.evaluate(model)
-                ax.set_xlabel(f"Fitness: {scale_fitness(model, mi):.3f}, MI: {mi:.3f}")
-                model.visualise(target_ax=ax, transparent=True)
-                ax.set_xticklabels([])
-                ax.set_yticklabels([])
-                ax.set_aspect("equal")
+            if rows == 1:
+                axes = [axes]
 
+            for i, row in enumerate(axes):
+                for (_, _, _, model), ax in zip(models[cols * i : cols * (i + 1)], row):
+                    avg_mi = 0
+                    for _ in range(reps):
+                        avg_mi += pip.evaluate(model)
+                    avg_mi /= reps
+                    ax.set_xlabel(
+                        f"Fitness: {scale_fitness(model, avg_mi):.3f}, MI: {avg_mi:.3f}"
+                    )
+                    model.visualise(target_ax=ax, transparent=True)
+                    ax.set_xticklabels([])
+                    ax.set_yticklabels([])
+                    ax.set_aspect("equal")
+
+            f_output = f"{Examples.CACHE_FOLDER}/best_{num_models}_{states}_{penalty_coeff}_{population}_{iterations}.png"
             plt.savefig(
-                f"{Examples.CACHE_FOLDER}/best_{num_models}_{states}_{penalty_coeff}_{population}_{iterations}.png",
+                fname=f_output,
                 dpi=200,
                 bbox_inches="tight",
                 pad_inches=0.25,
             )
+            print(f"Saved to: {f_output}")
 
         def examine_evolutionary_run_stats():
             import matplotlib.pyplot as plt
-            import pickle
 
-            fname = "stats_roulette_replace_models.dat"
+            job_id = "7324363"
+            fname = f"jobs/{job_id}_stats_models.dat"
 
-            with open(fname, "rb") as f:
-                stats = pickle.load(f)
+            population = 500
+            init_states = 6
+            iterations = 1000
+            selection = "4-tournament replace"
+            penalty = ""
 
+            stats = unpickle(fname)
+
+            include_duration = False
             model_groups = ("elite", "population", "non_elite")
             stat_labels = ("avg_fitness", "avg_mi", "avg_num_states")
             group_colors = ("firebrick", "seagreen", "royalblue")
 
-            fig, axes = plt.subplots(len(stat_labels), 1, sharex=True)
+            fig, axes = plt.subplots(
+                len(stat_labels) + int(include_duration), 1, sharex=True
+            )
             fig.tight_layout()
 
             for label, ax in zip(stat_labels, axes):
@@ -1099,7 +1154,10 @@ class Examples:
                 bbox_to_anchor=[0.5, -0.1],
             )
 
-            axes[0].set_title(f"{job_id}: tournament, replace, size of 4", loc="center")
+            axes[0].set_title(
+                f"{job_id}: init: {population} x {init_states} states x {iterations} iters, {selection}, {penalty}",
+                loc="center",
+            )
 
             plt.savefig(
                 f"{Examples.CACHE_FOLDER}/{job_id}_evolutionary_run_stats.png",
