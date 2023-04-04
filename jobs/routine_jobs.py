@@ -1,12 +1,14 @@
-from typing import Dict
 from evolution.genetic.runner import GeneticRunner
 from evolution.genetic.operators.mutation import MutationOperator
 from evolution.genetic.operators.selection import SelectionOperator
 from evolution.genetic.operators.crossover import CrossoverOperator
 from evolution.genetic.penalty import ModelPenalty
-from utils.process import get_tf_data
 from jobs.job import Job
+from optimisation.particle_swarm import ParticleSwarm
+from typing import Dict
+from utils.process import get_tf_data
 import pickle
+import os
 
 
 class GeneticAlgorithmJob(Job):
@@ -151,3 +153,66 @@ class GeneticAlgorithmJob(Job):
         with open("stats_" + _args["output_file"], "wb") as f:
             pickle.dump(stats, f)
             print(f"Cached GA runner stats at {f}.")
+
+
+class ParticleSwarmWeightOptimisationJob(Job):
+    def __init__(self, verbose: bool):
+        self.default_args = {
+            "n_particles": 10,
+            "n_processes": 10,
+            "iters": 10,
+            "set_curr_as_init": "False",
+            "model_file": "",
+            "cache_folder": "cache",
+            "output_file": "pso_model_weights.dat",
+        }
+        self.name = "Particle Swarm Weight Optimisation"
+        super().__init__(verbose)
+
+    @Job.timed
+    def run(self, args: Dict[str, any]) -> None:
+        """
+        Args:
+          n_particles           Number of particles for the simulation
+          n_processors          Number of processors to use
+          iters                 Number of iterations of the simulation
+          set_curr_as_init      Flag for if particles should be initialised in current position
+          model_file            Path to pickledƒ file containing model
+          cache_folder          Path to cache folder where data may be cached
+          output_file           Name of file to output data
+        """
+        _args = self.default_args
+
+        for arg_name, arg_value in args.items():
+            if arg_name in _args:
+                _args[arg_name] = arg_value
+
+        if self.verbose:
+            print(f"[{self.name}] parameters used:")
+            print("\n".join(f"\t{name}: {value}" for (name, value) in _args.items()))
+
+        if not _args["model_file"]:
+            print("Model file not specified.")
+            return
+        if not os.path.isfile(_args["model_file"]):
+            print(f"Model file {_args['model_file']} not found.")
+            return
+
+        with open(_args["model_file"], "rb") as f:
+            model = pickle.load(f)
+
+        data, _, _, _ = get_tf_data(cache_folder=_args["cache_folder"])
+
+        pso = ParticleSwarm()
+        cost, pos = pso.optimise(
+            data,
+            model,
+            n_particles=int(_args["n_particles"]),
+            n_processes=int(_args["n_processes"]),
+            iters=int(_args["iters"]),
+            start_at_pos=_args["set_curr_as_init"] == "True",
+        )
+
+        with open(_args["output_file"], "wb") as f:
+            pickle.dump((cost, pos), f)
+            print(f"Cached found weights and their cost at {f}.")

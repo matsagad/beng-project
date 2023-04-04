@@ -1,7 +1,10 @@
-from jobs.routine_jobs import GeneticAlgorithmJob
+from jobs.routine_jobs import GeneticAlgorithmJob, ParticleSwarmWeightOptimisationJob
 import sys
 
-jobs = {"genetic_algorithm": GeneticAlgorithmJob(verbose=True)}
+jobs = {
+    "genetic_algorithm": GeneticAlgorithmJob(verbose=True),
+    "pso_weight_optimisation": ParticleSwarmWeightOptimisationJob(verbose=True),
+}
 
 
 def main():
