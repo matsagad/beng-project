@@ -174,9 +174,9 @@ class ParticleSwarmWeightOptimisationJob(Job):
         """
         Args:
           n_particles           Number of particles for the simulation
-          n_processors          Number of processors to use
+          n_processes           Number of processors to use
           iters                 Number of iterations of the simulation
-          set_curr_as_init      Flag for if particles should be initialised in current position
+          set_curr_as_init      Flag for if particles should be initialised with input model's weights
           model_file            Path to pickledƒ file containing model
           cache_folder          Path to cache folder where data may be cached
           output_file           Name of file to output data
