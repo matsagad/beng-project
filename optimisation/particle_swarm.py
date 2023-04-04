@@ -10,52 +10,6 @@ import numpy as np
 class ParticleSwarm:
     _mp_instance = None
 
-    def evaluate_model_simple(X: NDArray, pip):
-        print(f"evaluating...{X}")
-        return -np.array(
-            [
-                pip.evaluate(
-                    PromoterModel(
-                        rate_fn_matrix=[
-                            [None, RF.Linear([particle[0]], [2])],
-                            [RF.Constant([particle[1]]), None],
-                        ]
-                    )
-                )
-                for particle in 10**X
-            ]
-        )
-
-    def optimise_simple(self, data: NDArray):
-        replicates = 10
-        classifier = "naive_bayes"
-
-        pip = OneStepDecodingPipeline(
-            data,
-            realised=True,
-            replicates=replicates,
-            classifier_name=classifier,
-        )
-
-        dims = 2
-        low, high = -2, 2  # log-space
-        bounds = (low * np.ones(dims), high * np.ones(dims))
-        options = {
-            "c1": 0.5,
-            "c2": 0.3,
-            "w": 0.9,
-        }
-
-        optimiser = GlobalBestPSO(
-            n_particles=10, dimensions=dims, options=options, bounds=bounds
-        )
-
-        cost, pos = optimiser.optimize(
-            ParticleSwarm.evaluate_model_simple, iters=20, pip=pip, n_processes=10
-        )
-
-        print(cost, pos)
-
     def evaluate_model(X: NDArray, pip):
         models = []
         for particle in 10**X:
@@ -78,12 +32,16 @@ class ParticleSwarm:
         return -np.array([pip.evaluate(model) for model in models])
 
     def optimise(
-        self, data: NDArray, reference_model: PromoterModel, start_at_pos: bool = False
+        self,
+        data: NDArray,
+        reference_model: PromoterModel,
+        n_particles: int = 10,
+        n_processes=10,
+        iters: int = 10,
+        start_at_pos: bool = False,
     ):
         replicates = 10
         classifier = "naive_bayes"
-        n_particles = 30
-        iters = 20
 
         pip = OneStepDecodingPipeline(
             data,
@@ -131,8 +89,59 @@ class ParticleSwarm:
             init_pos = 0.05 * init_pos + np.log10(reference_params)
 
         optimiser = GlobalBestPSO(
-            n_particles=n_particles, dimensions=dims, options=options, bounds=bounds, init_pos=init_pos
+            n_particles=n_particles,
+            dimensions=dims,
+            options=options,
+            bounds=bounds,
+            init_pos=init_pos,
         )
         cost, pos = optimiser.optimize(
-            ParticleSwarm.evaluate_model, iters=iters, pip=pip, n_processes=10
+            ParticleSwarm.evaluate_model, iters=iters, pip=pip, n_processes=n_processes
         )
+        return cost, pos
+    
+    def _evaluate_model_simple(X: NDArray, pip):
+        print(f"evaluating...{X}")
+        return -np.array(
+            [
+                pip.evaluate(
+                    PromoterModel(
+                        rate_fn_matrix=[
+                            [None, RF.Linear([particle[0]], [2])],
+                            [RF.Constant([particle[1]]), None],
+                        ]
+                    )
+                )
+                for particle in 10**X
+            ]
+        )
+
+    def _optimise_simple(self, data: NDArray):
+        replicates = 10
+        classifier = "naive_bayes"
+
+        pip = OneStepDecodingPipeline(
+            data,
+            realised=True,
+            replicates=replicates,
+            classifier_name=classifier,
+        )
+
+        dims = 2
+        low, high = -2, 2  # log-space
+        bounds = (low * np.ones(dims), high * np.ones(dims))
+        options = {
+            "c1": 0.5,
+            "c2": 0.3,
+            "w": 0.9,
+        }
+
+        optimiser = GlobalBestPSO(
+            n_particles=10, dimensions=dims, options=options, bounds=bounds
+        )
+
+        cost, pos = optimiser.optimize(
+            ParticleSwarm._evaluate_model_simple, iters=20, pip=pip, n_processes=10
+        )
+
+        return cost, pos

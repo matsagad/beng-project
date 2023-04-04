@@ -938,7 +938,7 @@ class Examples:
         def particle_swarm_simple():
             data, _, _, _ = get_tf_data()
             ps = ParticleSwarm()
-            ps.optimise_simple(data)
+            ps._optimise_simple(data)
         
         def particle_swarm():
             data, _, _, _ = get_tf_data()
