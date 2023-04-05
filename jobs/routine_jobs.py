@@ -9,7 +9,8 @@ from typing import Dict
 from utils.process import get_tf_data
 import pickle
 import os
-
+import sys
+import signal
 
 class GeneticAlgorithmJob(Job):
     def __init__(self, verbose: bool):
@@ -39,6 +40,12 @@ class GeneticAlgorithmJob(Job):
             "output_file": "models.dat",
         }
         self.name = "Genetic Algorithm"
+
+        # For data recovery
+        self.runner = None
+        self.cached_results = False
+        signal.signal(signal.SIGTERM, self.on_interrupted)
+        
         super().__init__(verbose)
 
     @Job.timed
@@ -127,7 +134,7 @@ class GeneticAlgorithmJob(Job):
                 *args, **kwargs, replace=with_replacement
             )
 
-        runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
+        self.runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
 
         mg_params = {
             "reversible": _args["reversible"] == "True",
@@ -135,7 +142,7 @@ class GeneticAlgorithmJob(Job):
             "p_edge": float(_args["p_edge"]),
         }
 
-        models, stats = runner.run(
+        models, stats = self.runner.run(
             states=int(_args["states"]),
             population=int(_args["population"]),
             iterations=int(_args["iterations"]),
@@ -154,6 +161,24 @@ class GeneticAlgorithmJob(Job):
             pickle.dump(stats, f)
             print(f"Cached GA runner stats at {f}.")
 
+    def on_interrupted(self, *args, **kwargs) -> None:
+        if self.cached_results:
+            sys.exit()
+
+        print("Interrupted. Caching currently found results.")
+
+        models, stats = self.runner.sorted_models, self.runner.runner_stats
+
+        with open(self.default_args["output_file"], "wb") as f:
+            pickle.dump(models, f)
+            print(f"Cached best models at {f}.")
+
+        with open("stats_" + self.default_args["output_file"], "wb") as f:
+            pickle.dump(stats, f)
+            print(f"Cached GA runner stats at {f}.")
+        
+        self.cached_results = True
+        sys.exit()
 
 class ParticleSwarmWeightOptimisationJob(Job):
     def __init__(self, verbose: bool):
@@ -216,3 +241,6 @@ class ParticleSwarmWeightOptimisationJob(Job):
         with open(_args["output_file"], "wb") as f:
             pickle.dump((cost, pos), f)
             print(f"Cached found weights and their cost at {f}.")
+
+    def on_interrupted(self, *args, **kwargs) -> None:
+        return super().on_interrupted()
