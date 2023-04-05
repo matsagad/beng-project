@@ -6,6 +6,8 @@ Jobs can be run via the shell command:
 python3 run_job.py {job_name} {job_arg=job_value}*
 ```
 
+Common to all jobs is the `max_runtime` argument which is set to `7200` seconds (two hours) by default. When this is exceeded, the job is interrupted and the `on_interrupted` method is called. To account for module imports and such, please allow a max runtime of at least 1-2 minutes earlier than required. 
+
 ## Supported Jobs
 
 ### Genetic Algorithm Simulation
