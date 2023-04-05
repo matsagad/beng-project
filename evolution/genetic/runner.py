@@ -32,6 +32,9 @@ class GeneticRunner:
         self.select = select
         self.scale_fitness = scale_fitness
 
+        self.sorted_models = []
+        self.runner_stats = {"avg_time_duration": []}
+
     def evaluate_wrapper(model: PromoterModel, index: int) -> Tuple[int, float, float]:
         return (index, *GeneticRunner.mp_instance._evaluate(model))
 
@@ -39,6 +42,20 @@ class GeneticRunner:
         mi = self.pip.evaluate(model, verbose=False)
         return self.scale_fitness(model, mi), mi
 
+    def save_on_interrupt(func) -> None:
+        def wrapper(*args, **kwargs):
+            try:
+                func(*args, **kwargs)
+            except KeyboardInterrupt:
+                runner, iterations = args[0], kwargs["iterations"]
+                print(
+                    f"Interrupted. Returning stats after iteration {len(args[0].runner_stats['avg_time_duration'])}/{iterations}."
+                )
+                return runner.sorted_models, runner.runner_stats
+
+        return wrapper
+
+    @save_on_interrupt
     def run(
         self,
         states: int,
@@ -72,7 +89,7 @@ class GeneticRunner:
 
         # Statistics for running the genetic algorithm
         labels = ("elite", "non_elite", "population")
-        runner_stats = {"avg_time_duration": []}
+        self.runner_stats = runner_stats = {"avg_time_duration": []}
         for label in labels:
             runner_stats[label] = {
                 "avg_fitness": [],
@@ -86,7 +103,6 @@ class GeneticRunner:
         # Use copy-on-write to avoid pickling entire exogenous data per process.
         # (Can do this as long as child processes don't modify the instance)
         GeneticRunner.mp_instance = self
-
         for iter in range(iterations):
             top_models = []
 
@@ -143,7 +159,7 @@ class GeneticRunner:
 
             # Get sorted list of models
             sorted_tuples = heapq.nsmallest(len(top_models), top_models)
-            sorted_models = [
+            self.sorted_models = sorted_models = [
                 (-tup[_FITNESS], *tup[_MI:_INDEX], models[tup[_INDEX]][_MODEL])
                 for tup in sorted_tuples
             ]
@@ -168,7 +184,11 @@ class GeneticRunner:
             # Update runner statistics
             for label, tuples in zip(
                 labels,
-                (sorted_models[:num_elites], sorted_models[num_elites:], sorted_models),
+                (
+                    sorted_models[:num_elites],
+                    sorted_models[num_elites:],
+                    sorted_models,
+                ),
             ):
                 runner_stats[label]["avg_fitness"].append(
                     np.average([tup[_FITNESS] for tup in tuples])
