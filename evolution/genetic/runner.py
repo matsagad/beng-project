@@ -42,20 +42,6 @@ class GeneticRunner:
         mi = self.pip.evaluate(model, verbose=False)
         return self.scale_fitness(model, mi), mi
 
-    def save_on_interrupt(func) -> None:
-        def wrapper(*args, **kwargs):
-            try:
-                func(*args, **kwargs)
-            except KeyboardInterrupt:
-                runner, iterations = args[0], kwargs["iterations"]
-                print(
-                    f"Interrupted. Returning stats after iteration {len(args[0].runner_stats['avg_time_duration'])}/{iterations}."
-                )
-                return runner.sorted_models, runner.runner_stats
-
-        return wrapper
-
-    @save_on_interrupt
     def run(
         self,
         states: int,
@@ -93,7 +79,9 @@ class GeneticRunner:
         for label in labels:
             runner_stats[label] = {
                 "avg_fitness": [],
+                "std_fitness": [],
                 "avg_mi": [],
+                "std_mi": [],
                 "avg_num_states": [],
             }
         best_stats = {"fitness": 0, "mi": 0, "num_states": 0, "hash": ""}
@@ -178,9 +166,6 @@ class GeneticRunner:
                     )
                 )
 
-            if iter == iterations - 1:
-                return sorted_models, runner_stats
-
             # Update runner statistics
             for label, tuples in zip(
                 labels,
@@ -193,8 +178,14 @@ class GeneticRunner:
                 runner_stats[label]["avg_fitness"].append(
                     np.average([tup[_FITNESS] for tup in tuples])
                 )
+                runner_stats[label]["std_fitness"].append(
+                    np.std([tup[_FITNESS] for tup in tuples])
+                )
                 runner_stats[label]["avg_mi"].append(
                     np.average([tup[_MI] for tup in tuples])
+                )
+                runner_stats[label]["std_mi"].append(
+                    np.std([tup[_MI] for tup in tuples])
                 )
                 runner_stats[label]["avg_num_states"].append(
                     np.average([tup[_MODEL].num_states for tup in tuples])
@@ -202,16 +193,20 @@ class GeneticRunner:
             runner_stats["avg_time_duration"].append(time.time() - start)
 
             if debug:
-                avg_fitness, avg_mi, avg_num_states = [
+                avg_fitness, avg_mi, std_mi, avg_num_states = [
                     runner_stats["population"][stat][-1]
-                    for stat in ("avg_fitness", "avg_mi", "avg_num_states")
+                    for stat in ("avg_fitness", "avg_mi", "std_mi", "avg_num_states")
                 ]
                 time_duration = runner_stats["avg_time_duration"][-1]
 
                 print(f"\tMean Population Fitness: {avg_fitness:.3f}")
                 print(f"\tMean Population MI: {avg_mi:.3f}")
+                print(f"\tStandard Deviation MI: {std_mi:.3f}")
                 print(f"\tAvg Number of States: {avg_num_states:.3f}")
                 print(f"\tIteration Duration: {time_duration:.3f}s")
+
+            if iter == iterations - 1:
+                break
 
             # Use selection operator to choose parents for next generation
             sorted_indices = [tup[_INDEX] for tup in sorted_tuples]
@@ -243,3 +238,5 @@ class GeneticRunner:
                 )
 
             models = elite + children
+
+        return self.sorted_models, self.runner_stats
