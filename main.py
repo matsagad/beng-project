@@ -20,11 +20,13 @@ import sys
 import time
 import pickle
 
+
 def unpickle(fname):
     object = None
     with open(fname, "rb") as f:
         object = pickle.load(f)
     return object
+
 
 def get_tf_data(**kwargs):
     args = sys.argv[1:]
@@ -34,6 +36,7 @@ def get_tf_data(**kwargs):
 
 
 class Examples:
+    curr_job_id = "7361710"
     CACHE_FOLDER = "cache/latestv2"
     tf_index = 2  # dot6
     a, b, c = 1.0e0, 1.0e0, 1.0e0
@@ -125,6 +128,10 @@ class Examples:
         def visualise_trajectory_example():
             data, _, time_delta, _ = get_tf_data()
             model = Examples.models[4]
+            model = model = PromoterModel([
+                [None, RF.Linear([1], [1])],
+                [RF.Linear([1], [2]), None],
+            ])
 
             # Simulate
             sim = OneStepSimulator(data, tau=time_delta, realised=True)
@@ -134,13 +141,13 @@ class Examples:
             # Visualise single cell
             print("Single-cell time series")
             OneStepSimulator.visualise_trajectory(
-                trajectories, model=model, average=False, batch_num=1
+                trajectories, model=model, average=False, batch_num=1, fname="single_traj.png"
             )
 
             # Visualise average
             print("Average-cell time series")
             OneStepSimulator.visualise_trajectory(
-                trajectories, model=model, average=True
+                trajectories, model=model, average=True, fname="avg_traj.png"
             )
 
         def visualise_realised_probabilistic_trajectories():
@@ -212,23 +219,17 @@ class Examples:
         def visualise_activity():
             data, origin, time_delta, _ = get_tf_data()
 
-            # model = Examples.models[2]
-            model = PromoterModel(
-                [[None, RF.Linear([10], [4])], [RF.Linear([4.7], [2]), None]]
-            )
-            model = PromoterModel(
-                [
-                    [None, RF.Linear([1], [2]), RF.Linear([10], [4])],
-                    [RF.Linear([1], [2]), None, RF.Linear([10], [4])],
-                    [RF.Linear([1], [2]), RF.Linear([1], [2]), None],
-                ]
-            ).with_equal_active_states([0, 1])
-            model = ModelGenerator.get_random_model(5, one_active_state=False)
+            # model = ModelGenerator.get_random_model(5, one_active_state=False)
 
-            fname = "jobs/7324363_models.dat"
+            # fname = f"jobs/{Examples.curr_job_id}_models.dat"
 
-            models = unpickle(fname)
-            _, _, _, model = models[0]
+            # models = unpickle(fname)
+            # _, _, _, model = models[0]
+            model = model = PromoterModel([
+                [None, RF.Linear([2], [1])],
+                [RF.Linear([1], [2]), None],
+            ])
+
 
             print(model.num_states)
             replicates = 10
@@ -473,7 +474,8 @@ class Examples:
             grid_dims = int((num_cells * replicates) ** 0.5)
 
             model = Examples.models[2]
-            _, _, _, model = unpickle("jobs/7324363_models.dat")[0]
+            fname = f"jobs/{Examples.curr_job_id}_models.dat"
+            _, _, _, model = unpickle(fname)[0]
 
             trajectories = OneStepSimulator(
                 data, time_delta, replicates=replicates
@@ -939,12 +941,12 @@ class Examples:
             data, _, _, _ = get_tf_data()
             ps = ParticleSwarm()
             ps._optimise_simple(data)
-        
+
         def particle_swarm():
             data, _, _, _ = get_tf_data()
             ps = ParticleSwarm()
 
-            fname = "jobs/7324363_models.dat"
+            fname = f"jobs/{Examples.curr_job_id}_models.dat"
             models = unpickle(fname)
             _, _, _, model = models[0]
 
@@ -1022,7 +1024,7 @@ class Examples:
             # fname = f"best_models_roulette_new_{states}_{population}_{iterations}.dat"
 
             reps = 10
-            fname = "jobs/7324363_models.dat"
+            fname = f"jobs/{Examples.curr_job_id}_models.dat"
             models = unpickle(fname)
 
             pip = OneStepDecodingPipeline(
@@ -1046,15 +1048,15 @@ class Examples:
 
             data, _, _, _ = get_tf_data()
 
-            rows, cols = 2, 5
+            rows, cols = 2, 2
             num_models = rows * cols
-            reps = 3
+            reps = 1
 
             states = 6
             penalty = False
             penalty_coeff = 0
-            population, iterations = 500, 1000
-            fname = "jobs/7324363_models.dat"
+            population, iterations = 2000, 2000
+            fname = f"jobs/{Examples.curr_job_id}_models.dat"
 
             scale_fitness = (
                 ModelPenalty.state_penalty(penalty_coeff)
@@ -1077,7 +1079,7 @@ class Examples:
             )
             pip.set_parallel()
 
-            plt.subplots_adjust(wspace=0.1, hspace=0.1)
+            plt.subplots_adjust(wspace=0.05, hspace=0.05)
 
             if rows == 1:
                 axes = [axes]
@@ -1091,7 +1093,7 @@ class Examples:
                     ax.set_xlabel(
                         f"Fitness: {scale_fitness(model, avg_mi):.3f}, MI: {avg_mi:.3f}"
                     )
-                    model.visualise(target_ax=ax, transparent=True)
+                    model.visualise(with_rates=False, target_ax=ax, transparent=False)
                     ax.set_xticklabels([])
                     ax.set_yticklabels([])
                     ax.set_aspect("equal")
@@ -1108,14 +1110,14 @@ class Examples:
         def examine_evolutionary_run_stats():
             import matplotlib.pyplot as plt
 
-            job_id = "7324363"
+            job_id = Examples.curr_job_id
             fname = f"jobs/{job_id}_stats_models.dat"
 
             population = 500
             init_states = 6
             iterations = 1000
-            selection = "4-tournament replace"
-            penalty = ""
+            selection = "roulette noreplace"
+            penalty = "6-target-8"
 
             stats = unpickle(fname)
 
