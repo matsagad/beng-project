@@ -11,8 +11,8 @@ class Preset:
     def simple(tf_index: int, a: float, b: float) -> PromoterModel:
         return PromoterModel(
             rate_fn_matrix=[
-                [None, RF.Linear(a, tf_index)],
-                [RF.Constant(b), None],
+                [None, RF.Linear([a], [tf_index])],
+                [RF.Constant([b]), None],
             ]
         ).with_equal_active_states([1])
 
@@ -20,8 +20,8 @@ class Preset:
     def simple_hill(tf_index: int, a: float, b: float, c: float) -> PromoterModel:
         return PromoterModel(
             rate_fn_matrix=[
-                [None, RF.Hill(a, b, tf_index)],
-                [RF.Constant(c), None],
+                [None, RF.Hill([a], [b], [tf_index])],
+                [RF.Constant([c]), None],
             ]
         ).with_equal_active_states([1])
 
@@ -31,9 +31,9 @@ class Preset:
     ) -> PromoterModel:
         return PromoterModel(
             rate_fn_matrix=[
-                [None, None, RF.Constant(a)],
-                [None, None, RF.Constant(b)],
-                [RF.Linear(a, tf_fst), RF.Linear(b, tf_snd), None],
+                [None, None, RF.Constant([a])],
+                [None, None, RF.Constant([b])],
+                [RF.Linear([a], [tf_fst]), RF.Linear([b], [tf_snd]), None],
             ]
         ).with_equal_active_states([0, 1])
 
@@ -43,13 +43,13 @@ class Preset:
     ) -> PromoterModel:
         return PromoterModel(
             rate_fn_matrix=[
-                [None, None, None, RF.Constant(a)],
-                [None, None, None, RF.Constant(b)],
-                [None, None, None, RF.Constant(c)],
+                [None, None, None, RF.Constant([a])],
+                [None, None, None, RF.Constant([b])],
+                [None, None, None, RF.Constant([c])],
                 [
-                    RF.Linear(a, tf_fst),
-                    RF.Linear(b, tf_snd),
-                    RF.Linear(c, tf_thd),
+                    RF.Linear([a], [tf_fst]),
+                    RF.Linear([b], [tf_snd]),
+                    RF.Linear([c], [tf_thd]),
                     None,
                 ],
             ]
