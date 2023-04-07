@@ -50,16 +50,17 @@ class StochasticSimulator(ABC):
         labels, colors = None, None
         if model is not None:
             labels = np.zeros(num_states, dtype=object)
-            labels[model.active_states] = [
-                f"$A_{i}$" for i in range(sum(model.active_states))
+            non_zero_activity = model.activity_weights > 0
+            labels[non_zero_activity] = [
+                f"$A_{i}$" for i in range(sum(non_zero_activity))
             ]
-            labels[~model.active_states] = [
-                f"$I_{i}$" for i in range(sum(~model.active_states))
+            labels[~non_zero_activity] = [
+                f"$I_{i}$" for i in range(sum(~non_zero_activity))
             ]
 
             colors = np.zeros(num_states, dtype=object)
             for (cmap_name, states) in zip(
-                ["summer", "autumn"], [model.active_states, ~model.active_states]
+                ["summer", "autumn"], [non_zero_activity, ~non_zero_activity]
             ):
                 cmap = cm.get_cmap(cmap_name, 2 * sum(states))
                 colors[states] = [
@@ -68,7 +69,7 @@ class StochasticSimulator(ABC):
 
         for (env_class, ax) in enumerate(axes):
             for state in range(num_states):
-                if not show_inactive and model is not None and not model.active_states[state]:
+                if not show_inactive and model is not None and not non_zero_activity[state]:
                     continue
                 ax.plot(
                     x,
