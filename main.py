@@ -775,73 +775,61 @@ class Examples:
                 pad_inches=0.15,
             )
 
-        def crossover_no_side_effects():
-            model1 = PromoterModel(
-                [[None, RF.Constant([1.23])], [RF.Linear([2.345], [1]), None]]
+        def evaluate_tf_presence_in_models():
+            from collections import Counter
+            import matplotlib.pyplot as plt
+
+            print("running....")
+
+            job_id = Examples.curr_job_id
+            fname = f"jobs/{job_id}_models.dat"
+            models = unpickle(fname)
+            elites = models[: int(0.1 * len(models))]
+
+            freq = Counter()
+            tf_freq = Counter()
+
+            for _, _, _, model in elites:
+                tfs = set()
+                for row in model.rate_fn_matrix:
+                    for fn in row:
+                        if fn is None:
+                            continue
+                        tf_freq.update(fn.tfs)
+                        tfs.update(fn.tfs)
+                freq[tuple(sorted(tfs))] += 1
+
+            tf_names = ["maf1", "mig1", "dot6", "tod6", "sfp1"]
+
+            fig, axes = plt.subplots(1, 2)
+            fig.subplots_adjust(hspace=0.5, wspace=0.5)
+            ax1, ax2 = axes
+
+            tf_freq_total = tf_freq.total()
+            freq_total = freq.total()
+
+            bar1 = ax1.bar(
+                np.arange(len(tf_freq)),
+                [cnt / tf_freq_total for cnt in tf_freq.values()],
             )
-            model2 = PromoterModel(
-                [[None, RF.Linear([4.56], [2])], [RF.Constant([0.123]), None]]
+            ax1.set_xlabel("Transcription Factor")
+            ax1.set_ylabel("% found in elite edges")
+            ax1.set_xticks(
+                np.arange(len(tf_freq)), tf_names
             )
-            for model in (model1, model2):
-                print(model.hash()[:6])
 
-            data, _, _, _ = get_tf_data()
-            mutations = [
-                MutationOperator.add_noise,
-                MutationOperator.add_edge,
-                MutationOperator.edit_edge,
-                MutationOperator.flip_tf,
-                MutationOperator.add_activity_noise,
-                MutationOperator.flip_activity,
-            ]
-            crossover = CrossoverOperator.one_point_triangular_row_swap
-            select = SelectionOperator.tournament
-            runner = GeneticRunner(data, mutations, crossover, select)
+            bar2 = ax2.bar(
+                np.arange(len(freq)), [cnt / freq_total for cnt in freq.values()]
+            )
+            ax2.set_xlabel("TF Group")
+            ax2.set_ylabel("% found in models")
+            ax2.set_xticks(
+                np.arange(len(freq)), ['\n'.join(tf_names[tf] for tf in group) for group in freq.keys()],
+            )
 
-            # Model1 can change hash but model2 must remain the same
-            children = runner.crossover(model1, model2, False, True)
-            for child in children:
-                for _ in range(1000):
-                    runner.mutate(child)
+            plt.savefig("tf_presence.png", bbox_inches="tight", pad_inches=0.15)
 
-            for model in (model1, model2):
-                print(model.hash()[:6])
-
-        def models_generated_are_valid():
-            # Random models are valid
-            for _ in range(100):
-                model = ModelGenerator.get_random_model(10, p_edge=0.5)
-                ModelGenerator.is_valid(model, verbose=True)
-
-            data, _, _, _ = get_tf_data()
-            mutations = [
-                MutationOperator.add_noise,
-                MutationOperator.add_edge,
-                MutationOperator.edit_edge,
-                MutationOperator.flip_tf,
-            ]
-            # crossover = CrossoverOperator.one_point_triangular_row_swap
-            crossover = CrossoverOperator.subgraph_swap
-            select = SelectionOperator.tournament
-            runner = GeneticRunner(data, mutations, crossover, select)
-
-            # Crossover maintains reversibility
-            for _ in range(1000):
-                models = [
-                    ModelGenerator.get_random_model(states=states, p_edge=p_edge)
-                    for states, p_edge in zip(
-                        2 + np.random.choice(20, size=2), np.random.uniform(size=2)
-                    )
-                ]
-                models = runner.crossover(*models, False, False)
-                for model in models:
-                    ModelGenerator.is_valid(model, verbose=True)
-
-            # Mutations maintain reversibility
-            model = ModelGenerator.get_random_model(10, p_edge=0.1)
-            for _ in range(1000):
-                model = runner.mutate(model)
-                ModelGenerator.is_valid(model, verbose=True)
+        
 
         def test_random_model_variance():
             data, _, _, _ = get_tf_data()
