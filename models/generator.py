@@ -132,12 +132,12 @@ class ModelGenerator:
                     print(f"Model {model.hash()} has an irreversible edge.")
                 return False
 
-        # Check there is exactly one active state
-        num_active_states = sum(model.active_states)
-        if num_active_states != 1:
+        # Check there is at least one active state
+        num_active_states = sum(model.activity_weights > 0)
+        if num_active_states == 0:
             if verbose:
                 print(
-                    f"Model {model.hash()} has {num_active_states} active states (expected one)."
+                    f"Model {model.hash()} has zero active states (expected at least one)."
                 )
             return False
 
