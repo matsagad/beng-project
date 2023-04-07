@@ -531,405 +531,12 @@ class Examples:
             )
             animation.save("grid_activity.gif", writer="imagemagick")
 
-    class Benchmarking:
-        def matrix_exponentials():
+        def visualise_trajectory_weaving():
             data, _, _, _ = get_tf_data()
-            model = Examples.models[2]
-
-            start = time.time()
-            mat = model.get_matrix_exp(data, 2.5)
-            print(time.time() - start)
-
-        def trajectory():
-            data, _, time_delta, _ = get_tf_data()
-
-            states = [i for i in range(2, 20)]
-            repeats = 10
-
-            sim = OneStepSimulator(data, tau=time_delta, realised=True, replicates=10)
-            sim.seed = 27
-            res = [[], []]
-
-            # Simulate
-            for num_states in states:
-                totals = [0, 0]
-                for _ in range(repeats):
-                    model = ModelGenerator.get_random_model(num_states, p_edge=0.5)
-                    trajectories = []
-
-                    for i in (0, 1):
-                        start = time.time()
-                        sim.binary_search = bool(i)
-                        trajectories.append(sim.simulate(model))
-                        totals[i] += time.time() - start
-
-                    if not np.array_equal(trajectories[0], trajectories[1]):
-                        print(
-                            "Trajectories are not equal for the same model and random seed!"
-                        )
-
-                for i in (0, 1):
-                    res[i].append(totals[i] / repeats)
-                print(
-                    f"{num_states} states: {', '.join(f'{res[i][-1]:.3f}s' for i in (0, 1))}"
-                )
-
-            import matplotlib.pyplot as plt
-
-            plt.plot(states, res[0], label="Vectorised $O(n)$")
-            plt.plot(states, res[1], label="Non-vectorised $O(log(n))$")
-
-            plt.xticks(states)
-
-            plt.ylabel("Time (s)")
-            plt.xlabel("Number of States")
-            plt.legend()
-
-            plt.savefig(f"{Examples.CACHE_FOLDER}/ssa_comparison.png")
-            print(res)
-
-        def mi_estimation():
-            data, origin, time_delta, _ = get_tf_data()
-            model = Examples.models["best_2"]
-
-            interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval, "naive_bayes")
-            est.parallel = True
-
-            for replicates in [1, 5, 10, 50, 100]:
-                # Simulate
-                sim = OneStepSimulator(
-                    data, tau=time_delta, realised=True, replicates=replicates
-                )
-                trajectories = sim.simulate(model)
-
-                # Estimate MI
-                print("Estimating MI...")
-                start = time.time()
-                mi_score = est.estimate(model, trajectories)
-                print(f"{replicates} replicates: {time.time() - start}")
-
-                print(f"MI: {mi_score}")
-
-        def max_mi_estimation():
-            import itertools
-
-            data, origin, _, tf_names = get_tf_data()
-            dummy_model = PromoterModel.dummy()
-
-            reps = 10
-            interval = 30
-            classifier = "naive_bayes"
-            random_mesh = True
-
-            est = DecodingEstimator(origin, interval, classifier)
-            est.parallel = True
-            tf_split_data = []
-            num_tfs = len(tf_names)
-
-            for tf_index in range(num_tfs):
-                TIME_AXIS = 2
-                raw_data = np.moveaxis(data[:, tf_index], TIME_AXIS, 0)
-                raw_data = raw_data.reshape((*raw_data.shape, 1))
-                tf_split_data.append(est._split_classes(dummy_model, raw_data))
-
-            print(f"{classifier}: interval {interval}, {reps} reps")
-            print(f"|\033[1m{'TF GROUP':^25}\033[0m|\033[1m{'MI':^25}\033[0m|")
-            print(("|" + "-" * 25) * 2 + "|")
-            for group_size in range(1, num_tfs + 1):
-                for comb in itertools.combinations(list(range(num_tfs)), group_size):
-                    comb_split_data = np.concatenate(
-                        [tf_split_data[tf] for tf in comb], axis=2
-                    )
-                    if random_mesh:
-                        num_cells = comb_split_data.shape[1]
-                        indices = np.random.choice(
-                            group_size, (num_cells, interval)
-                        ) * interval + np.arange(interval)
-
-                        ## To randomly choose across all cell-samples
-                        # num_envs = comb_split_data.shape[0]
-                        # env_indices, cell_indices, _ = np.indices((num_envs, num_cells, interval))
-                        # comb_split_data = comb_split_data[env_indices, cell_indices, indices]
-
-                        comb_split_data = comb_split_data[:, :, indices]
-                    total = 0
-                    for _ in range(reps):
-                        total += est._estimate(comb_split_data, halving=False)
-                    print(
-                        f"|{','.join(tf_names[tf] for tf in comb):^25}|{(total/reps):^25.3f}|"
-                    )
-
-        def mi_estimation_table():
-            # (for simple model only)
-            data, origin, time_delta, _ = get_tf_data()
-            model = Examples.models[2]
-            interval = OneStepDecodingPipeline.FIXED_INTERVAL
-
-            replicates = [1, 2, 5, 10, 20, 50]
-            classifiers = ["svm", "random_forest", "decision_tree", "naive_bayes"]
-            TIMEOUT = 300
-
-            res_times = np.zeros((len(classifiers), len(replicates))) + float("inf")
-            res_mi = np.zeros((len(classifiers), len(replicates))) - 1
-
-            def _benchmark(cls_index: int, rep_index: int) -> None:
-                classifier, replicate = classifiers[cls_index], replicates[rep_index]
-                print(f"{classifier} - {replicate} reps")
-                sim = OneStepSimulator(
-                    data, tau=time_delta, realised=True, replicates=replicate
-                )
-                trajectory = sim.simulate(model)
-                est = DecodingEstimator(origin, interval, classifier)
-                start = time.time()
-                mi_score = est.estimate(model, trajectory)
-                res_times[cls_index, rep_index] = time.time() - start
-                res_mi[cls_index, rep_index] = mi_score
-
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                for i in range(len(classifiers)):
-                    for j in range(len(replicates)):
-                        try:
-                            executor.submit(_benchmark, i, j).result(TIMEOUT)
-                        except Exception as e:
-                            print(e)
-
-            print(res_times)
-            print(res_mi)
-
-        def mi_vs_interval():
-            data, origin, time_delta, _ = get_tf_data()
-            model = Examples.models[2]
-            reps = 3
-            scores = []
-
-            for interval in range(1, origin):
-                replicates = 20
-                est = DecodingEstimator(origin, interval, "naive_bayes")
-                est.parallel = True
-
-                # Simulate
-                sim = OneStepSimulator(
-                    data, tau=time_delta, realised=True, replicates=replicates
-                )
-                trajectories = sim.simulate(model)
-
-                # Estimate MI
-                print("Estimating MI...")
-                start = time.time()
-
-                mi_score = 0
-                for _ in range(reps):
-                    mi_score += est.estimate(model, trajectories)
-                mi_score = mi_score / reps
-
-                print(f"{interval} interval: {time.time() - start}")
-                print(f"MI: {mi_score}")
-                scores.append(mi_score)
-
-            print(scores)
-
-            import matplotlib.pyplot as plt
-
-            plt.plot([i for i in range(1, origin)], scores)
-            plt.ylabel("MI")
-            plt.xlabel("Length of time interval from origin")
-            plt.savefig(f"{Examples.CACHE_FOLDER}/mi_vs_interval.png", dpi=100)
-
-        def mi_vs_repeated_intervals():
-            data, origin, time_delta, _ = get_tf_data()
-            interval = OneStepDecodingPipeline.FIXED_INTERVAL
-
-            # Scale controls number of repeated intervals
-            scale = 2
-
-            origin *= scale
-            time_delta /= scale
-            interval *= scale
-            data = np.repeat(data, scale, axis=3)
-
-            model = Examples.models[2]
-            est = DecodingEstimator(origin, interval, "svm")
-
-            for replicates in [1]:
-                # Simulate
-                sim = OneStepSimulator(
-                    data[:1], tau=time_delta, realised=True, replicates=replicates
-                )
-                trajectories = sim.simulate(model)
-
-                # Estimate MI
-                print("Estimating MI...")
-                start = time.time()
-                mi_score = est.estimate(model, trajectories)
-                print(f"{replicates} replicates: {time.time() - start}")
-
-                print(f"MI: {mi_score}")
-
-        def _evaluate(estimator, model, trajectories, i):
-            mi = estimator.estimate(model, trajectories)
-            return mi, i
-
-        def mi_distribution():
-            data, origin, time_delta, _ = get_tf_data()
-            model = Examples.models[2]
-
-            interval = OneStepDecodingPipeline.FIXED_INTERVAL
-            est = DecodingEstimator(origin, interval, "naive_bayes")
-            est.parallel = False
-
-            iters = 25
-            rep_count = [1, 2, 5, 10, 20]
-            n_processors = 10
-
-            fname = f"mi_dist_rand_{iters}_{'_'.join(map(str,rep_count))}.dat"
-            import os
-            from concurrent.futures import ProcessPoolExecutor, as_completed
-
-            if os.path.isfile(fname):
-                print("Using cached MI distribution.")
-                hist_map = unpickle(fname)
-            else:
-                hist_map = dict()
-
-                for reps in rep_count:
-                    hist_map[reps] = []
-
-                    # Simulate
-                    sim = OneStepSimulator(
-                        data, tau=time_delta, realised=True, replicates=reps
-                    )
-                    trajectories = sim.simulate(model)
-
-                    # Estimate MI
-                    with ProcessPoolExecutor(
-                        max_workers=min(n_processors, iters),
-                    ) as executor:
-                        futures = []
-                        for i in range(iters):
-                            futures.append(
-                                executor.submit(
-                                    Examples.Benchmarking._evaluate,
-                                    est,
-                                    model,
-                                    trajectories,
-                                    i,
-                                )
-                            )
-
-                        for future in as_completed(futures):
-                            mi_score, i = future.result()
-                            hist_map[reps].append(mi_score)
-                            print(f"{reps}-{i}: {mi_score:.3f}")
-
-                with open(fname, "wb") as f:
-                    pickle.dump(hist_map, f)
-                    print("Cached best MI distribution.")
-
-            import matplotlib.pyplot as plt
-
-            # plt.style.use("seaborn-deep")
-
-            bins = np.linspace(0, 0.6, 60)
-
-            for reps, hist in hist_map.items():
-                plt.hist(hist, bins, alpha=0.5, label=f"{reps} reps", edgecolor="black")
-
-            # plt.hist(list(hist_map.values()), bins, label=list(hist_map.keys()))
-            plt.legend(loc="upper right")
-            plt.savefig(f"{Examples.CACHE_FOLDER}/mi_distribution.png", dpi=200)
-
-        def _pip_evaluate(
-            pip: OneStepDecodingPipeline, model: PromoterModel, index: int
-        ) -> Tuple[float, int]:
-            mi = pip.evaluate(model, verbose=False)
-            return index, mi
-
-        def sklearn_nested_parallelism():
-            data, origin, time_delta, _ = get_tf_data()
-            model = Examples.models[4]
-
-            reps = 20
-            n_processors = 5
-            iters = 2
-
-            pip = OneStepDecodingPipeline(data, tau=time_delta, replicates=reps)
-
-            # Parallelised n_job=1 tasks
-            from concurrent.futures import ProcessPoolExecutor, as_completed
-
-            start = time.time()
-            with ProcessPoolExecutor(
-                max_workers=min(n_processors, iters),
-            ) as executor:
-                futures = []
-                for i in range(iters):
-                    futures.append(
-                        executor.submit(
-                            Examples.Benchmarking._pip_evaluate,
-                            pip,
-                            model,
-                            i,
-                        )
-                    )
-
-                for future in as_completed(futures):
-                    mi_score, i = future.result()
-                    print(f"{reps}-{i}: {mi_score:.3f}")
-            print("\n" * 5 + f"Took {time.time() - start:.3f}s" + "\n" * 5)
-
-            # Nested Parallelism
-            import dask
-            from dask.distributed import Client
-            from sklearn.utils import register_parallel_backend
-            import logging
-
-            client = Client(silence_logs=logging.INFO)
-            dask.config.set(scheduler="processes")
-            register_parallel_backend("distributed", client)
-
-            pip.set_parallel()
-            start = time.time()
-            futures = []
-            for i in range(iters):
-                futures.append(
-                    client.submit(
-                        Examples.Benchmarking._pip_evaluate,
-                        pip,
-                        model,
-                        i,
-                    )
-                )
-            res = client.gather(futures)
-            print(res)
-            print("\n" * 5 + f"Took {time.time() - start:.3f}s" + "\n" * 5)
-
-        def genetic_multiprocessing_overhead():
-            data, _, _, _ = get_tf_data()
-
-            states = 4
-            population, iterations = 10, 100
-
-            mutations = [
-                MutationOperator.edit_edge,
-                MutationOperator.add_edge,
-                MutationOperator.flip_tf,
-                MutationOperator.add_noise,
-            ]
-            crossover = CrossoverOperator.one_point_triangular_row_swap
-            select = SelectionOperator.roulette_wheel
-            runner = GeneticRunner(data, mutations, crossover, select)
-
-            start = time.time()
-            models, stats = runner.run(
-                states=states,
-                population=population,
-                iterations=iterations,
-                model_generator_params={"one_active_state": False},
-                verbose=True,
-                debug=True,
-            )
-            print(time.time() - start)
+            model = PromoterModel([
+                [None, RF.Linear([1], [1])],
+                [RF.Linear([1], [2]), None],
+            ])
 
     class Optimisation:
         def grid_search_simple():
@@ -1257,23 +864,6 @@ class Examples:
                         )
                         print(f"\t{mi_score}")
 
-        def test_hypothetical_perfect_model():
-            data, origin, _, _ = get_tf_data()
-            pip = OneStepDecodingPipeline(
-                data, replicates=10, classifier_name="naive_bayes"
-            )
-            pip.set_parallel()
-
-            dummy_model = PromoterModel.dummy()
-            dummy_traj = np.zeros(pip.simulator.simulate(dummy_model).shape)
-
-            # Rich state left as is. Note: first state is active state
-            dummy_traj[origin : origin + origin // 4, 0, :, 0] = 1
-            dummy_traj[origin : origin + 2 * origin // 4, 1, :, 0] = 1
-            dummy_traj[origin : origin + 3 * origin // 4, 2, :, 0] = 1
-
-            mi_score = pip.estimator.estimate(dummy_model, dummy_traj)
-            print(mi_score)
 
     class Data:
         def find_labels():
@@ -1301,19 +891,33 @@ class Examples:
             print(time_delta)
             print(tf_names)
 
+        def pickle_best_model():
+            job_id = "7324363"
+            fname = f"jobs/{job_id}_models.dat"
+            models = unpickle(fname)
+
+            with open("best_model.dat", "wb") as f:
+                pickle.dump(models[0][3], f)
+
 
 def main():
-    # Examples.Benchmarking.trajectory()
-    # Examples.Benchmarking.mi_estimation()
-    # Examples.Benchmarking.max_mi_estimation()
-    # Examples.Benchmarking.mi_estimation_table()
-    # Examples.Benchmarking.mi_vs_interval()
-    # Examples.Benchmarking.mi_vs_repeated_intervals()
-    # Examples.Benchmarking.mi_distribution()
-    # Examples.Benchmarking.sklearn_nested_parallelism()
-    # Examples.Benchmarking.genetic_multiprocessing_overhead()
-    # Examples.Benchmarking.test_crossover()
+    # from examples.benchmarking import BenchmarkingExamples
+    # bm_examples = BenchmarkingExamples()
+    # bm_examples.matrix_exponentials()
+    # bm_examples.trajectory_simulation()
+    # bm_examples.mi_estimation()
+    # bm_examples.mi_estimation_table()
+    # bm_examples.sklearn_nested_parallelism()
+    # bm_examples.genetic_multiprocessing_overhead()
 
+    # from examples.mi_trends import MITrendsExamples
+    # mi_examples = MITrendsExamples()
+    # mi_examples.mi_vs_interval()
+    # mi_examples.mi_distribution()
+    # mi_examples.max_mi_estimation()
+    # mi_examples.mi_vs_repeated_intervals()
+
+    
     # Examples.PlottingVisuals.visualise_model_example()
     # Examples.PlottingVisuals.visualise_trajectory_example()
     # Examples.PlottingVisuals.visualise_realised_probabilistic_trajectories()
@@ -1329,7 +933,7 @@ def main():
 
     # Examples.Optimisation.grid_search_simple()
     # Examples.Optimisation.particle_swarm_simple()
-    Examples.Optimisation.particle_swarm()
+    # Examples.Optimisation.particle_swarm()
 
     # Examples.Evolution.genetic_simple()
     # Examples.Evolution.model_generation()
@@ -1337,13 +941,12 @@ def main():
     # Examples.Evolution.load_best_models()
     # Examples.Evolution.show_best_models()
     # Examples.Evolution.examine_evolutionary_run_stats()
-    # Examples.Evolution.crossover_no_side_effects()
-    # Examples.Evolution.models_generated_are_valid()
+    # Examples.Evolution.evaluate_tf_presence_in_models()
     # Examples.Evolution.test_random_model_variance()
-    # Examples.Evolution.test_hypothetical_perfect_model()
 
     # Examples.Data.find_labels()
     # Examples.Data.load_data()
+    # Examples.Data.pickle_best_model()
 
 
 if __name__ == "__main__":
