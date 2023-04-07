@@ -98,8 +98,10 @@ class PromoterModel:
 
     def visualise(
         self,
+        with_rates: bool = True,
         save: bool = False,
         fname: str = "cache/model.png",
+        white_bg: bool = True,
         transparent: bool = False,
         small_size: bool = False,
         target_ax: any = None,
@@ -113,6 +115,8 @@ class PromoterModel:
 
         # Colors are from the "marumaru gum" palette by sukinapan!
         palette = ["#96beb1", "#fda9a9", "#f3eded", "#82939b", "#b9eedc"]
+        bg = "white" if white_bg else palette[2]
+
         num_colors = 10
         cmap = LinearSegmentedColormap.from_list(
             "redToGreen", [(0, palette[1]), (1, palette[4])], N=num_colors
@@ -144,10 +148,10 @@ class PromoterModel:
         graph.vs["label_size"] = properties[:, 2]
 
         edges = [
-            [(i, j), entry.str()]
+            [(i, j), rate_fn.str(with_rates=with_rates)]
             for (i, row) in enumerate(self.rate_fn_matrix)
-            for (j, entry) in enumerate(row)
-            if entry is not None
+            for (j, rate_fn) in enumerate(row)
+            if rate_fn is not None
         ]
         graph.add_edges([edge for edge, _ in edges])
         graph.es["label"] = [label for _, label in edges]
@@ -158,7 +162,7 @@ class PromoterModel:
             "background": None,
             "edge_label": None if small_size else graph.es["label"],
             "edge_width": 1,
-            "edge_background": None if transparent else palette[2],
+            "edge_background": None if transparent else bg,
             "vertex_label": None if small_size else graph.vs["label"],
             "bbox": (200, 200),
             "layout": graph.layout("kk"),
@@ -166,7 +170,7 @@ class PromoterModel:
 
         if target_ax is not None:
             if not transparent:
-                target_ax.set_facecolor(palette[2])
+                target_ax.set_facecolor(bg)
             plot(graph, target=target_ax, **visual_style)
             return
 
