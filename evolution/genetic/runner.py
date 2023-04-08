@@ -54,7 +54,7 @@ class GeneticRunner:
         initial_population: List[Tuple[float, float, int, PromoterModel]] = [],
         verbose: bool = True,
         debug: bool = False,
-    ) -> Tuple[List[PromoterModel], Dict[str, any]]:
+    ) -> Tuple[List[Tuple[float, float, int, PromoterModel]], Dict[str, any]]:
         # Continue from a previous iteration if available
         models = [
             (self.scale_fitness(model, mi), mi, runs_left, model)
