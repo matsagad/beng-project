@@ -178,8 +178,8 @@ class PromoterModel:
         ax.set_aspect(1)
 
         if not transparent:
-            ax.set_facecolor(palette[2])
-            fig.set_facecolor(palette[2])
+            ax.set_facecolor(bg)
+            fig.set_facecolor(bg)
 
         plot(graph, target=ax, **visual_style)
 
