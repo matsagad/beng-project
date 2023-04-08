@@ -23,7 +23,7 @@ class OneStepSimulator(StochasticSimulator):
         self.realised = realised
         self.replicates = replicates
         self.seed = None
-        self.binary_search = True
+        self.binary_search = False
 
     def simulate(
         self, model: PromoterModel

@@ -320,8 +320,16 @@ class DecodingEstimator(MIEstimator):
         self,
         model: PromoterModel,
         trajectory: NDArray[Shape["Any, Any, Any, Any"], Float],
+        verbose: bool = False,
+        halving: bool = True,
         add_noise: bool = False,
         smoothen: bool = False,
     ) -> float:
         data = self._split_classes(model, trajectory)
-        return self._estimate(data, add_noise=add_noise, smoothen=smoothen)
+        return self._estimate(
+            data,
+            verbose=verbose,
+            halving=halving,
+            add_noise=add_noise,
+            smoothen=smoothen,
+        )
