@@ -1,6 +1,7 @@
 from evolution.genetic.operators.mutation import MutationOperator
 from evolution.genetic.operators.crossover import CrossoverOperator
 from evolution.genetic.operators.selection import SelectionOperator
+from evolution.genetic.penalty import ModelPenalty
 from evolution.genetic.runner import GeneticRunner
 from models.generator import ModelGenerator
 from models.model import PromoterModel
@@ -16,9 +17,9 @@ import numpy as np
 
 class TutorialExamples:
     """
-    This is a tutorial on how to use the library of functions and classes
-    within the project along with some explanations on how they work so
-    that anyone can easily make adjustments as they see fit.
+    This is a tutorial on how to use the library of classes and functions
+    within the project together with some explanations on how they work.
+    This is intended to allow anyone to easily make adjustments as they see fit.
 
     Whenever a function is introduced for the first time, the parameters
     are explicitly typed for clarity. After that, only keyword arguments
@@ -418,3 +419,106 @@ class TutorialExamples:
 
             model = ModelGenerator.get_random_model(4)
             mi_score = pip.evaluate(model, verbose=True)
+
+    class GeneticAlgorithm(ClassWithData):
+        def __init__(self):
+            super().__init__()
+
+        def running_evolution(self):
+            """
+            The genetic algorithm runner can be initialised with the chosen
+            crossover, mutation, and selection operators (see CrossoverOperator,
+            MutationOperator, and SelectionOperator for a full list of operators
+            and how they work).
+
+            The `scale_fitness` parameter takes in a function with the model and
+            MI as its arguments and returns a fitness value by scaling the MI
+            based on the model's properties, e.g. number of states or edges (see
+            ModelPenalty for a full list of penalties available). By default, it
+            is the identity function.
+
+            To run the algorithm, the `run` method is typically called with parameters:
+            `states`, the number of states for models in the initial population;
+            `population`, the number of models to consider at any one time;
+            `elite_ratio`, the proportion of models kept as elites;
+            `iterations`, the number of iterations to run the algorithm; and
+            `n_processors`, the number of processes to be delegated futures.
+
+            Other parameters include: `runs_per_model`, specifying how many times
+            a model is to be estimated for MI (at any point, its running average is
+            used for comparison), `initial_population`, a list containing an output
+            of models from a previous run to continue the simulation, and
+            `model_generator_params`, a dictionary containing arguments for how the
+            initial population is randomly generated (see arguments of
+            `ModelGeneration.get_random_model`).
+
+            For a HPC, the algorithm can be run as a job from the command line (see
+            `jobs.routine_jobs.GeneticAlgorithmJob` for a complete list of parameters
+            and their descriptions).
+
+            This returns a list of tuples: (fitness, mi, runs_left, model), and a
+            dictionary containing statistics on the trends during runtime, e.g.
+            average number of states, average fitness, standard deviation of MI, etc.
+            """
+            # Genetic operators
+            mutations = [
+                MutationOperator.edit_edge,
+                MutationOperator.add_edge,
+                MutationOperator.flip_tf,
+                MutationOperator.add_noise,
+                MutationOperator.flip_activity,
+                MutationOperator.add_activity_noise,
+            ]
+            crossover = CrossoverOperator.subgraph_swap
+            select = SelectionOperator.tournament
+
+            # Fitness scaler
+            scale_fitness = ModelPenalty.balanced_state_penalty
+
+            # Initialise the runner
+            runner = GeneticRunner(
+                data=self.data,
+                mutations=mutations,
+                crossover=crossover,
+                select=select,
+                scale_fitness=scale_fitness,
+            )
+
+            # Run the genetic algorithm
+            models, stats = runner.run(
+                states=5,
+                population=100,
+                elite_ratio=0.1,
+                iterations=100,
+                n_processors=10,
+            )
+
+        def crossover_models(self):
+            """
+            It may be worth testing how models produce offspring given
+            a certain crossover operator. Simply pass the two models as arguments
+            to the crossover function and get back their two children.
+
+            Additional parameters `model_is_elite`, `other_is_elite` are used
+            during the genetic algorithm to determine whether a model's
+            rate function matrix can be reused or must be deep-copied. When
+            a model is elite, it persists onto the next generation and thereby
+            copying rate functions by reference may cause unwanted side-effects
+            if mutations affect them.
+            """
+            parent1 = ModelGenerator.get_random_model(3)
+            parent2 = ModelGenerator.get_random_model(5)
+            child1, child2 = CrossoverOperator.subgraph_swap(parent1, parent2)
+
+        def mutate_models(self):
+            """
+            To mutate models, simply pass them as an argument to the mutation
+            function.
+
+            Note: models are directly modified and the returned model is the same
+            object reference. It is returned here to allow ease in function
+            composition when there are multiple mutation operators to be used
+            in the genetic algorithm.
+            """
+            model = ModelGenerator.get_random_model(4)
+            mutated_model = MutationOperator.add_activity_noise(model)
