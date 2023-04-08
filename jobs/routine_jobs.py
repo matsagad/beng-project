@@ -37,6 +37,7 @@ class GeneticAlgorithmJob(Job):
             # I/O and hardware
             "n_processors": 1,
             "cache_folder": "cache",
+            "initial_population": "",
             "output_file": "models.dat",
         }
         self.name = "Genetic Algorithm"
@@ -76,9 +77,10 @@ class GeneticAlgorithmJob(Job):
           one_active_state  Flag for if models should have only one active state (True)
 
           # I/O and hardware
-          n_processors      Number of processors to parallelise model evaluation
-          cache_folder      Path to cache folder where data may be cached
-          output_file       Name of file to output model data
+          n_processors          Number of processors to parallelise model evaluation
+          cache_folder          Path to cache folder where data may be cached
+          initial_population    Name of file containing models to initialise the run
+          output_file           Name of file to output model data
         """
         _args = self.default_args
 
@@ -134,6 +136,15 @@ class GeneticAlgorithmJob(Job):
                 *args, **kwargs, replace=with_replacement
             )
 
+        initial_population = []
+        if _args["initial_population"]:
+            try:
+                with open(_args["initial_population"], "rb") as f:
+                    initial_population = pickle.load(f)
+            except:
+                print(f"No such file: {_args['initial_population']} found.")
+                print("Randomly initialising the population instead.")
+
         self.runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
 
         mg_params = {
@@ -149,6 +160,7 @@ class GeneticAlgorithmJob(Job):
             elite_ratio=float(_args["elite_ratio"]),
             n_processors=int(_args["n_processors"]),
             model_generator_params=mg_params,
+            initial_population=initial_population,
             verbose=True,
             debug=True,
         )

@@ -51,19 +51,27 @@ class GeneticRunner:
         n_processors: int = 10,
         runs_per_model: int = 3,
         model_generator_params: Dict[str, any] = dict(),
+        initial_population: List[Tuple[float, float, int, PromoterModel]] = [],
         verbose: bool = True,
         debug: bool = False,
     ) -> Tuple[List[PromoterModel], Dict[str, any]]:
-        # Randomly initialise random models with specified number of states
+        # Continue from a previous iteration if available
         models = [
+            (self.scale_fitness(model, mi), mi, runs_left, model)
+            for _, mi, runs_left, model in initial_population[:population]
+        ]
+        models_remaining = population - len(models)
+
+        # Randomly initialise models with specified number of states
+        models.extend(
             (
                 0,
                 0,
                 runs_per_model,
                 ModelGenerator.get_random_model(states, **model_generator_params),
             )
-            for _ in range(population)
-        ]
+            for _ in range(models_remaining)
+        )
 
         # Access model tuples through the following indices
         _FITNESS, _MI, _RUNS, _MODEL = 0, 1, 2, 3
