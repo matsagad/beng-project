@@ -23,8 +23,8 @@ class GridSearch:
             for j, k_off in enumerate(np.logspace(low_bound, up_bound, num=off_count)):
                 model = PromoterModel(
                     rate_fn_matrix=[
-                        [None, RF.Linear(k_on, tf)],
-                        [RF.Constant(k_off), None],
+                        [None, RF.Linear([k_on], [tf])],
+                        [RF.Constant([k_off]), None],
                     ]
                 )
                 # print(f"TF{tf}-{'%.2f' % k_on}-{'%.2f' % k_off}")
@@ -39,16 +39,24 @@ class GridSearch:
         self,
         exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
         tf_names: List[str],
+        grid_size: Tuple[int, int] = (10, 10),
+        log_bounds: Tuple[int, int] = (-2, 2),
+        classifier: str = "svm",
+        single_env: bool = False,
+        replicates: int = 1,
+        fname: str = "optimise_simple.png",
+        cache_folder: str = "cache",
     ) -> None:
-        on_count, off_count = 10, 10
-        low_bound, up_bound = -2, 0
-        replicates = 1
-        classifier = "svm"
-        single_env = False
-        tfs_to_test = ["dot6", "mig1"]  # tf_names
+        on_count, off_count = grid_size
+        low_bound, up_bound = log_bounds
+        tfs_to_test = tf_names
 
         data = exogenous_data[:1] if single_env else exogenous_data
-        fname_temp = f"cache/latestv2/res_real_tf{{tf_index}}_{classifier}_reps{replicates}_{low_bound}-{up_bound}_{on_count}_{off_count}.npy"
+        fname_temp = (
+            f"{cache_folder}/{fname.split('/')[-1].split('.')[0]}__"
+            + f"tf{{tf_index}}_{classifier}_reps{replicates}_"
+            + f"{low_bound}-{up_bound}_{on_count}_{off_count}.npy"
+        )
         pip = OneStepDecodingPipeline(
             data,
             realised=True,
@@ -71,10 +79,10 @@ class GridSearch:
         if num_tfs == 1:
             # Don't spawn processes that interfere with sklearn's joblib parallelism
             tf = tfs[0]
-            fname = fname_temp.format(tf_index=tf)
-            if os.path.isfile(fname):
+            cache_fname = fname_temp.format(tf_index=tf)
+            if os.path.isfile(cache_fname):
                 print(f"Using cached data for TF{tf}")
-                res[tfs.index(tf)] = np.load(fname)
+                res[tfs.index(tf)] = np.load(cache_fname)
             else:
                 pip.set_parallel()
                 tf, data = GridSearch._simple_grid_search(tfs[0], params)
@@ -87,10 +95,10 @@ class GridSearch:
             ) as executor:
                 futures = []
                 for i, tf in enumerate(tfs):
-                    fname = fname_temp.format(tf_index=tf)
-                    if os.path.isfile(fname):
+                    cache_fname = fname_temp.format(tf_index=tf)
+                    if os.path.isfile(cache_fname):
                         print(f"Using cached data for TF{tf}")
-                        res[tfs.index(tf)] = np.load(fname)
+                        res[tfs.index(tf)] = np.load(cache_fname)
                         continue
                     futures.append(
                         executor.submit(GridSearch._simple_grid_search, tf, params)
@@ -124,5 +132,4 @@ class GridSearch:
 
         fig.colorbar(im, ax=axes, location="bottom")
 
-        plt.savefig(f"cache/grid_tfs_{on_count}_{off_count}", dpi=100)
-        print(f"Cached data to {fname_temp.format(tf_index='x')}")
+        plt.savefig(fname, dpi=100)
