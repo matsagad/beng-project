@@ -99,15 +99,17 @@ class ParticleSwarm:
             ParticleSwarm.evaluate_model, iters=iters, pip=pip, n_processes=n_processes
         )
         return cost, pos
-    
-    def _evaluate_model_simple(X: NDArray, pip):
+
+    def _evaluate_model_simple(
+        X: NDArray, pip: OneStepDecodingPipeline, tf: int
+    ) -> NDArray:
         print(f"evaluating...{X}")
         return -np.array(
             [
                 pip.evaluate(
                     PromoterModel(
                         rate_fn_matrix=[
-                            [None, RF.Linear([particle[0]], [2])],
+                            [None, RF.Linear([particle[0]], [tf])],
                             [RF.Constant([particle[1]]), None],
                         ]
                     )
@@ -116,7 +118,7 @@ class ParticleSwarm:
             ]
         )
 
-    def _optimise_simple(self, data: NDArray):
+    def _optimise_simple(self, data: NDArray, tf: int):
         replicates = 10
         classifier = "naive_bayes"
 
@@ -141,7 +143,11 @@ class ParticleSwarm:
         )
 
         cost, pos = optimiser.optimize(
-            ParticleSwarm._evaluate_model_simple, iters=20, pip=pip, n_processes=10
+            ParticleSwarm._evaluate_model_simple,
+            iters=20,
+            pip=pip,
+            tf=tf,
+            n_processes=10,
         )
 
         return cost, pos
