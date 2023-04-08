@@ -19,28 +19,6 @@ class BenchmarkingExamples(ClassWithData):
         super().__init__()
         self.model = Preset.simple(2, 1, 1)
 
-        self.default_sim_args = {
-            "exogenous_data": self.data,
-            "tau": self.time_delta,
-            "realised": True,
-            "replicates": 10,
-        }
-
-        self.default_est_args = {
-            "origin": self.origin,
-            "interval": self.interval,
-            "replicates": 10,
-            "classifier_name": "naive_bayes",
-        }
-
-        self.default_pip_args = {
-            **self.default_sim_args,
-            **self.default_est_args,
-            "classifier_name": "naive_bayes",
-        }
-        self.SAVE_FOLDER = f"{self.CACHE_FOLDER}/benchmarking/saves"
-        self.CACHING_FOLDER = f"{self.CACHE_FOLDER}/benchmarking/cache"
-
     def matrix_exponentials(self):
         """
         Plot the execution time of matrix exponential calculation
@@ -55,7 +33,7 @@ class BenchmarkingExamples(ClassWithData):
             for _ in range(repeats):
                 model = ModelGenerator.get_random_model(num_states)
                 start = time.time()
-                matrix = model.get_matrix_exp(self.data, self.time_delta)
+                model.get_matrix_exp(self.data, self.time_delta)
                 total += time.time() - start
             avg_time = total / repeats
             print(f"{num_states} states: {avg_time:.3f}s")

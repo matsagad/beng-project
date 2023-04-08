@@ -15,28 +15,6 @@ class MITrendsExamples(ClassWithData):
         super().__init__()
         self.model = Preset.simple(2, 1, 1)
 
-        self.default_sim_args = {
-            "exogenous_data": self.data,
-            "tau": self.time_delta,
-            "realised": True,
-            "replicates": 10,
-        }
-
-        self.default_est_args = {
-            "origin": self.origin,
-            "interval": self.interval,
-            "replicates": 10,
-            "classifier_name": "naive_bayes",
-        }
-
-        self.default_pip_args = {
-            **self.default_sim_args,
-            **self.default_est_args,
-            "classifier_name": "naive_bayes",
-        }
-        self.SAVE_FOLDER = f"{self.CACHE_FOLDER}/mi_trends_examples/saves"
-        self.CACHING_FOLDER = f"{self.CACHE_FOLDER}/mi_trends_examples/cache"
-
     def mi_vs_interval(self):
         """
         Plot the MI estimates as the interval size from

@@ -249,8 +249,6 @@ class TutorialExamples:
         def __init__(self):
             super().__init__()
 
-            self.DEFAULT_INTERVAL = 30
-
         def estimating_mutual_information(self):
             """
             A decoding-based approach is employed within the study. That is,
@@ -304,7 +302,7 @@ class TutorialExamples:
             ).simulate(model)
 
             est = DecodingEstimator(
-                origin=self.origin, interval=self.DEFAULT_INTERVAL, replicates=10
+                origin=self.origin, interval=self.interval, replicates=10
             )
             mi_score = est.estimate(
                 model=model, trajectory=trajectories, verbose=False, halving=True
@@ -333,14 +331,14 @@ class TutorialExamples:
             # An SVM estimator
             DecodingEstimator(
                 self.origin,
-                self.DEFAULT_INTERVAL,
+                self.interval,
                 classifier_name="svm",
             )
 
             # A random forest estimator with specific parameters
             DecodingEstimator(
                 self.origin,
-                self.DEFAULT_INTERVAL,
+                self.interval,
                 classifier_name="random_forest",
                 classifier_params={
                     "criterion": "entropy",
@@ -352,7 +350,7 @@ class TutorialExamples:
             # An estimator using a custom classifier
             my_own_classifier = None
             DecodingEstimator(
-                self.origin, self.DEFAULT_INTERVAL, classifier=my_own_classifier
+                self.origin, self.interval, classifier=my_own_classifier
             )
 
         def multiprocessing_decoding(self):
@@ -368,7 +366,7 @@ class TutorialExamples:
             does not work with this scheme. Using a dask backend, this is possible
             (see examples.benchmarking.sklearn_nested_parallelism).
             """
-            est = DecodingEstimator(self.origin, self.DEFAULT_INTERVAL)
+            est = DecodingEstimator(self.origin, self.interval)
             est.parallel = True
 
         def experimental_trajectory_processing(self):
@@ -384,7 +382,7 @@ class TutorialExamples:
                 self.data, self.time_delta, replicates=10
             ).simulate(model)
 
-            est = DecodingEstimator(self.origin, self.DEFAULT_INTERVAL)
+            est = DecodingEstimator(self.origin, self.interval)
             mi_score = est.estimate(model, trajectories, add_noise=True, smoothen=False)
 
         def wrapping_into_a_pipeline(self):
@@ -412,7 +410,7 @@ class TutorialExamples:
                 realised=True,
                 replicates=10,
                 origin=self.origin,
-                interval=self.DEFAULT_INTERVAL,
+                interval=self.interval,
                 classifier_name="naive_bayes",
             )
             pip.set_parallel()
