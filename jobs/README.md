@@ -33,6 +33,7 @@ Runs a genetic algorithm on a randomly generated initial population of models. A
 | `one_active_state` | Flag for if models should have only one active state | `True` |
 | `n_processors`     | Number of processors to parallelise model evaluation | `1` |
 | `cache_folder`     | Path to cache folder where data may be cached | `cache/` |
+| `initial_population` | Name of file containing models to initialise the run | n/a |
 | `output_file`      | Name of file to output model data | `models.dat` |
 
 Example:
