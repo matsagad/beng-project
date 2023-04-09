@@ -274,6 +274,57 @@ class VisualisationExamples(ClassWithData):
             writer="imagemagick",
         )
 
+    def visualise_random_model_generation(self):
+        """
+        Visualise randomly generated models as the number of states and
+        sparsity (`p_edge`) are varied.
+        """
+        states = np.arange(2, 10)
+        sparsities = np.linspace(0, 1, 10)
+        n_rows, n_cols = len(states), len(sparsities)
+
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(1.5 * n_cols, 1.5 * n_rows),
+            sharex=True,
+            sharey=True,
+        )
+        fig.tight_layout()
+
+        for dim in (n_rows, n_cols):
+            if dim == 1:
+                axes = [axes]
+
+        for num_states, row in zip(states, axes):
+            for p_edge, ax in zip(sparsities, row):
+                ModelGenerator.get_random_model(num_states, p_edge).visualise(
+                    small_size=True, target_ax=ax
+                )
+
+        fig.add_subplot(111, frameon=False)
+        plt.tick_params(
+            labelcolor="none",
+            which="both",
+            top=False,
+            bottom=False,
+            left=False,
+            right=False,
+        )
+        plt.xlabel("Probability of edge connection")
+        plt.ylabel("Number of States")
+
+        plt.subplots_adjust(wspace=0, hspace=0)
+
+        if self.save_pictures:
+            plt.savefig(
+                f"{self.SAVE_FOLDER}/visualise_random_model_generation.png",
+                bbox_inches="tight",
+                pad_inches=0.25,
+            )
+            return
+        plt.show()
+
     def visualise_crossover(self):
         """
         Visualise the offsprings produced by a crossover between two random models.
