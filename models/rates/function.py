@@ -15,7 +15,7 @@ class RateFunction:
             pass
 
         @abstractmethod
-        def str(self, with_rates: bool=True) -> str:
+        def str(self, with_rates: bool = True) -> str:
             pass
 
         @staticmethod
@@ -25,6 +25,11 @@ class RateFunction:
 
         def _str(self) -> str:
             return f"{self.__class__.__name__}({self.rates}, {self.tfs})"
+
+        def __hash__(self) -> int:
+            return hash(
+                (*map(ord, self.__class__.__name__), tuple(self.rates), tuple(self.tfs))
+            )
 
     class Constant(Function):
         def evaluate(self, exo_states: NDArray) -> float:
@@ -61,9 +66,13 @@ class RateFunction:
 
         def str(self, with_rates: bool = True) -> str:
             return (
-                f"$\\frac{{{self.rates[0]:.3f} \cdot TF_{{{self.tfs[0]}}}}}"
-                + f"{{{self.rates[1]:.3f} + TF_{{{self.tfs[0]}}}}}$"
-            ) if with_rates else f"$Hill(TF_{{{self.tfs[0]}}})$"
+                (
+                    f"$\\frac{{{self.rates[0]:.3f} \cdot TF_{{{self.tfs[0]}}}}}"
+                    + f"{{{self.rates[1]:.3f} + TF_{{{self.tfs[0]}}}}}$"
+                )
+                if with_rates
+                else f"$Hill(TF_{{{self.tfs[0]}}})$"
+            )
 
         def num_params() -> Tuple[int, int]:
             return 2, 1
