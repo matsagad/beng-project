@@ -495,7 +495,7 @@ class TutorialExamples:
             select = SelectionOperator.tournament
 
             # Fitness scaler
-            scale_fitness = ModelPenalty.balanced_state_penalty
+            scale_fitness = ModelPenalty.balanced_state_penalty()
 
             # Initialise the runner
             runner = GeneticRunner(
@@ -509,9 +509,9 @@ class TutorialExamples:
             # Run the genetic algorithm
             models, stats = runner.run(
                 states=5,
-                population=100,
+                population=10,
                 elite_ratio=0.1,
-                iterations=100,
+                iterations=10,
                 n_processors=10,
             )
 
