@@ -64,7 +64,7 @@ def get_tf_data(
     for experiment in (NUCLEAR_MARKER_EXPTS, STRESS_TYPE_EXPTS):
         if not os.path.isfile(experiment):
             raise Exception(f"Data for experiment not found: {experiment}.")
-    
+
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
     from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -201,5 +201,3 @@ def get_tf_data(
     ts = scale_fn(ts) if scale else ts
 
     return ts, params["origin"], params["avg_time_delta"], params["tf_names"]
-
-print("loaded process")
