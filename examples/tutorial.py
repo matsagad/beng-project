@@ -5,14 +5,13 @@ from evolution.genetic.penalty import ModelPenalty
 from evolution.genetic.runner import GeneticRunner
 from models.generator import ModelGenerator
 from models.model import PromoterModel
-from models.preset import Preset
 from models.rates.function import RateFunction as RF
 from mi_estimation.decoding import DecodingEstimator
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from ssa.one_step import OneStepSimulator
-from typing import Tuple
 from utils.data import ClassWithData
-import numpy as np
+import json
+import os
 
 
 class TutorialExamples:
@@ -30,11 +29,38 @@ class TutorialExamples:
         def __init__(self):
             super().__init__()
 
+        def raw_data_structure(self):
+            """
+            The following recursively lists out the JSON structure of the
+            raw experimental data files, indicating what information is accessible.
+            """
+            fpath = "data/"
+            fnames = ["fig2_stress_type_expts.json", "figS1_nuclear_marker_expts.json"]
+
+            # DFS on JSON structure
+            for fname in fnames:
+                if not os.path.isfile(fname):
+                    print(f"File {fpath}/{fname} not found.")
+                    continue
+
+                print(fname)
+                with open(fpath + fname, "r") as f:
+                    data = json.load(f)
+                    stack = [(k, v, "\t") for (k, v) in data.items()]
+
+                    while stack:
+                        label, items, prefix = stack.pop()
+                        print(prefix + label)
+                        if not isinstance(items, dict):
+                            continue
+                        stack.extend((k, v, "\t" + prefix) for (k, v) in items.items())
+
         def data_format(self):
             """
-            The exogenous data used throughout is a multidimensional array
-            containing TF concentrations for each cell replicate as stress is
-            induced.
+            After pre-processing, the data is treated as an exogenous input which
+            is used throughout the library. It is a multidimensional array
+            containing TF concentrations for each cell replicate at specific
+            timepoints.
 
             An origin index is used to mark at which point in time the cell
             replicates were introduced to stress.
@@ -349,9 +375,7 @@ class TutorialExamples:
 
             # An estimator using a custom classifier
             my_own_classifier = None
-            DecodingEstimator(
-                self.origin, self.interval, classifier=my_own_classifier
-            )
+            DecodingEstimator(self.origin, self.interval, classifier=my_own_classifier)
 
         def multiprocessing_decoding(self):
             """
