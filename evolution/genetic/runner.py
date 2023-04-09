@@ -135,7 +135,7 @@ class GeneticRunner:
                 "fitness": -top_models[0][_FITNESS],
                 "mi": top_models[0][_MI],
                 "num_states": curr_best_model.num_states,
-                "hash": curr_best_model.hash()[2:8],
+                "hash": curr_best_model.hash(short=True),
             }
 
             if curr_stats["fitness"] > best_stats["fitness"]:
@@ -168,7 +168,7 @@ class GeneticRunner:
                     "\tTop Elites: "
                     + ", ".join(
                         [
-                            f"({fitness:.3f}, {mi:.3f}, {model.num_states}, {model.hash()[2:8]})"
+                            f"({fitness:.3f}, {mi:.3f}, {model.num_states}, {model.hash(short=True)})"
                             for fitness, mi, _, model in elite
                         ]
                     )
