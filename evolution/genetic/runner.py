@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from evolution.wrapper import ModelWrapper
 from functools import reduce
 from models.generator import ModelGenerator
 from models.model import PromoterModel
@@ -57,25 +58,27 @@ class GeneticRunner:
     ) -> Tuple[List[Tuple[float, float, int, PromoterModel]], Dict[str, any]]:
         # Continue from a previous iteration if available
         models = [
-            (self.scale_fitness(model, mi), mi, runs_left, model)
+            ModelWrapper(
+                model=model,
+                fitness=self.scale_fitness(model, mi),
+                mi=mi,
+                runs_left=runs_left,
+            )
             for _, mi, runs_left, model in initial_population[:population]
         ]
         models_remaining = population - len(models)
 
         # Randomly initialise models with specified number of states
         models.extend(
-            (
-                0,
-                0,
-                runs_per_model,
-                ModelGenerator.get_random_model(states, **model_generator_params),
+            ModelWrapper(
+                model=ModelGenerator.get_random_model(states, **model_generator_params),
+                runs_left=runs_per_model,
             )
             for _ in range(models_remaining)
         )
 
         # Access model tuples through the following indices
-        _FITNESS, _MI, _RUNS, _MODEL = 0, 1, 2, 3
-        _INDEX = _MODEL
+        WRAPPER, INDEX = 0, 1
 
         # Get number of elites to keep and children to produce
         num_elites = int(population * elite_ratio)
@@ -109,17 +112,22 @@ class GeneticRunner:
                 max_workers=min(population, n_processors)
             ) as executor:
                 futures = []
-                for i, (fitness, mi, runs_left, model) in enumerate(models):
-                    if runs_left > 0:
+                for i, wrapper in enumerate(models):
+                    if wrapper.runs_left > 0:
                         futures.append(
-                            executor.submit(GeneticRunner.evaluate_wrapper, model, i)
+                            executor.submit(
+                                GeneticRunner.evaluate_wrapper, wrapper.model, i
+                            )
                         )
                     else:
-                        heapq.heappush(top_models, (-fitness, mi, 0, i))
+                        heapq.heappush(top_models, (wrapper, i))
 
                 for future in as_completed(futures):
                     i, curr_fitness, curr_mi = future.result()
-                    avg_fitness, avg_mi, runs_left, _ = models[i]
+
+                    wrapper = models[i]
+                    avg_fitness, avg_mi = wrapper.fitness, wrapper.mi
+                    runs_left = wrapper.runs_left
 
                     # Find running average for fitness and MI of each model
                     fitness = (
@@ -128,14 +136,16 @@ class GeneticRunner:
                     mi = (avg_mi * (runs_per_model - runs_left) + curr_mi) / (
                         runs_per_model - runs_left + 1
                     )
-                    heapq.heappush(top_models, (-fitness, mi, runs_left - 1, i))
+                    wrapper.fitness, wrapper.mi = fitness, mi
 
-            curr_best_model = models[top_models[0][_INDEX]][_MODEL]
+                    heapq.heappush(top_models, (wrapper, i))
+
+            curr_best_model_wrapper = top_models[0][WRAPPER]
             curr_stats = {
-                "fitness": -top_models[0][_FITNESS],
-                "mi": top_models[0][_MI],
-                "num_states": curr_best_model.num_states,
-                "hash": curr_best_model.hash(short=True),
+                "fitness": curr_best_model_wrapper.fitness,
+                "mi": curr_best_model_wrapper.mi,
+                "num_states": curr_best_model_wrapper.model.num_states,
+                "hash": curr_best_model_wrapper.model.hash(short=True),
             }
 
             if curr_stats["fitness"] > best_stats["fitness"]:
@@ -156,8 +166,7 @@ class GeneticRunner:
             # Get sorted list of models
             sorted_tuples = heapq.nsmallest(len(top_models), top_models)
             self.sorted_models = sorted_models = [
-                (-tup[_FITNESS], *tup[_MI:_INDEX], models[tup[_INDEX]][_MODEL])
-                for tup in sorted_tuples
+                wrapper for wrapper, _ in sorted_tuples
             ]
 
             # Keep elites in next generation
@@ -168,14 +177,14 @@ class GeneticRunner:
                     "\tTop Elites: "
                     + ", ".join(
                         [
-                            f"({fitness:.3f}, {mi:.3f}, {model.num_states}, {model.hash(short=True)})"
-                            for fitness, mi, _, model in elite
+                            f"({wrapper.fitness:.3f}, {wrapper.mi:.3f}, {wrapper.model.num_states}, {wrapper.model.hash(short=True)})"
+                            for wrapper in elite
                         ]
                     )
                 )
 
             # Update runner statistics
-            for label, tuples in zip(
+            for label, wrappers in zip(
                 labels,
                 (
                     sorted_models[:num_elites],
@@ -183,20 +192,15 @@ class GeneticRunner:
                     sorted_models,
                 ),
             ):
-                runner_stats[label]["avg_fitness"].append(
-                    np.average([tup[_FITNESS] for tup in tuples])
-                )
-                runner_stats[label]["std_fitness"].append(
-                    np.std([tup[_FITNESS] for tup in tuples])
-                )
-                runner_stats[label]["avg_mi"].append(
-                    np.average([tup[_MI] for tup in tuples])
-                )
-                runner_stats[label]["std_mi"].append(
-                    np.std([tup[_MI] for tup in tuples])
-                )
+                fitnesses = [wrapper.fitness for wrapper in wrappers]
+                mis = [wrapper.mi for wrapper in wrappers]
+
+                runner_stats[label]["avg_fitness"].append(np.average(fitnesses))
+                runner_stats[label]["std_fitness"].append(np.std(fitness))
+                runner_stats[label]["avg_mi"].append(np.average(mis))
+                runner_stats[label]["std_mi"].append(np.std(mis))
                 runner_stats[label]["avg_num_states"].append(
-                    np.average([tup[_MODEL].num_states for tup in tuples])
+                    np.average([wrapper.model.num_states for wrapper in wrappers])
                 )
             runner_stats["avg_time_duration"].append(time.time() - start)
 
@@ -217,10 +221,10 @@ class GeneticRunner:
                 break
 
             # Use selection operator to choose parents for next generation
-            sorted_indices = [tup[_INDEX] for tup in sorted_tuples]
+            sorted_indices = [tup[INDEX] for tup in sorted_tuples]
 
             parents = self.select(
-                np.array([tup[_FITNESS] for tup in sorted_models])[
+                np.array([wrapper.fitness for wrapper in sorted_models])[
                     np.argsort(sorted_indices)
                 ],
                 n=num_children,
@@ -236,10 +240,10 @@ class GeneticRunner:
                 parents[1::2],
             ):
                 children.extend(
-                    (0, 0, runs_per_model, self.mutate(child))
+                    ModelWrapper(self.mutate(child), runs_left=runs_per_model)
                     for child in self.crossover(
-                        models[parent1][_MODEL],
-                        models[parent2][_MODEL],
+                        models[parent1].model,
+                        models[parent2].model,
                         parent1 in elite_indices,
                         parent2 in elite_indices,
                     )
@@ -247,4 +251,4 @@ class GeneticRunner:
 
             models = elite + children
 
-        return self.sorted_models, self.runner_stats
+        return [wrapper.as_tuple() for wrapper in self.sorted_models], self.runner_stats
