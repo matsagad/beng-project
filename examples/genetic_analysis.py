@@ -5,17 +5,23 @@ import matplotlib.pyplot as plt
 
 
 class GeneticAnalysisExamples(ClassWithData):
-    def __init__(self, job_id: str = "7361710"):
+    def __init__(self, f_models: str = None, f_stats: str = None, job_id: str = "7361710"):
         super().__init__()
 
+        self.save_pictures = True
+
+        if f_models is not None and f_stats is not None:
+            self.models = self.unpickle(f_models)
+            self.stats = self.unpickle(f_stats)
+            self.job_id = f_stats.split(".")[0]
+            return
+        
         # Models and stats saved from a genetic algorithm job
         # (Replace with path to where such files exist)
         _job_folder = "jobs"
         self.job_id = job_id
         self.models = self.unpickle(f"{_job_folder}/{self.job_id}_models.dat")
         self.stats = self.unpickle(f"{_job_folder}/{self.job_id}_stats_models.dat")
-
-        self.save_pictures = True
 
     def evaluate_models(self):
         """
@@ -43,8 +49,6 @@ class GeneticAnalysisExamples(ClassWithData):
                     total = 0
                     for _ in range(repeats):
                         total += pip.evaluate(model)
-                    print(model.hash())
-                    print(model.hash(short=True))
                     print(f"\t\t{model.hash(short=True)}: {total/repeats:.3f}")
 
     def visualise_models(self):
