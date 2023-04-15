@@ -1,4 +1,8 @@
-from jobs.routine_jobs import GeneticAlgorithmJob, ParticleSwarmWeightOptimisationJob
+from jobs.routine_jobs import (
+    GeneticAlgorithmJob,
+    ParticleSwarmWeightOptimisationJob,
+    NoveltySearchJob,
+)
 import sys
 import signal
 
@@ -6,13 +10,17 @@ HOURS = 3600
 jobs = {
     "genetic_algorithm": GeneticAlgorithmJob(verbose=True),
     "pso_weight_optimisation": ParticleSwarmWeightOptimisationJob(verbose=True),
+    "novelty_search": NoveltySearchJob(verbose=True),
 }
+
 
 class Alarm(Exception):
     pass
 
+
 def alarm_handler(*args):
     raise Alarm
+
 
 def main():
     _args = sys.argv[1:]
@@ -39,6 +47,7 @@ def main():
         signal.alarm(0)
     except Alarm:
         jobs[job_type].on_interrupted()
+
 
 if __name__ == "__main__":
     main()
