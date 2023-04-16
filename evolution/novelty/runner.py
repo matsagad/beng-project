@@ -53,7 +53,9 @@ class NoveltySearchRunner:
         classes = None
         if find_classes:
             dist_traj = self.prob_pip.simulator.simulate(model)
-            classes = self.prob_pip.estimator._split_classes(model, dist_traj)
+            classes = np.mean(
+                self.prob_pip.estimator._split_classes(model, dist_traj), axis=1
+            )
         return self.scale_fitness(model, mi), mi, classes
 
     def run(
@@ -123,7 +125,8 @@ class NoveltySearchRunner:
         if linear_metric:
             nn = NearestNeighbors(
                 n_neighbors=n_neighbors + 1,  # excluding self
-                metric=TrajectoryMetric.js_divergence_for_trajectories,
+                algorithm="ball_tree",
+                metric=TrajectoryMetric.rms_js_metric_for_trajectories,
                 n_jobs=-1,
             )
 
@@ -256,7 +259,7 @@ class NoveltySearchRunner:
 
             if debug:
                 print(
-                    "\t(Pareto) Elites: "
+                    "\tPareto-based Elites: "
                     + ", ".join(
                         [
                             f"({wrapper.fitness:.3f}, {wrapper.mi:.3f}, {wrapper.model.num_states}, {wrapper.model.hash(short=True)})"
