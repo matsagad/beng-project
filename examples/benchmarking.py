@@ -285,3 +285,76 @@ class BenchmarkingExamples(ClassWithData):
             debug=False,
         )
         print(f"After large property: {time.time() - start:.3f}s")
+
+    def nearest_neighbours_novelty(self):
+        """
+        See speed improvements of novelty k-nn with different choices in algorithm
+        (brute or ball tree) and sample processing (individual vs averaged trajectory).
+        """
+        from sklearn.neighbors import NearestNeighbors
+        from evolution.novelty.metrics import TrajectoryMetric
+        from evolution.wrapper import ModelWrapper
+        import time
+
+        n_neighbors = 15
+        n_models = 200
+        n_trials = 3
+
+        pip = OneStepDecodingPipeline(self.data, realised=False)
+        pip.set_parallel()
+        get_classes = lambda model: pip.estimator._split_classes(
+            model, pip.simulator.simulate(model)
+        )
+
+        wrappers = [
+            ModelWrapper(ModelGenerator.get_random_model(2)) for _ in range(n_models)
+        ]
+        avg_wrappers = []
+        for wrapper in wrappers:
+            wrapper.classes = get_classes(wrapper.model)
+
+            avg_wrapper = ModelWrapper(wrapper.model)
+            avg_wrapper.classes = np.average(wrapper.classes, axis=1)
+            avg_wrappers.append(avg_wrapper)
+
+        nn_arr = [wrapper.as_nn_array() for wrapper in wrappers]
+        avg_nn_arr = [wrapper.as_nn_array() for wrapper in avg_wrappers]
+
+        distance_arrs, neighbor_arrs = [], []
+        for arr, name in zip((nn_arr, avg_nn_arr), ("individual", "average")):
+            distance_arr, neighbor_arr = [], []
+            print(name)
+            for algorithm in ("brute", "ball_tree"):
+                print(f"\t{algorithm}")
+                nn = NearestNeighbors(
+                    n_neighbors=n_neighbors + 1,
+                    algorithm=algorithm,
+                    metric=TrajectoryMetric.rms_js_metric_for_trajectories,
+                    n_jobs=-1,
+                )
+                nn.fit(arr)
+
+                start = time.time()
+                for _ in range(n_trials):
+                    distances, neighbors = nn.kneighbors(arr, return_distance=True)
+                avg_time = (time.time() - start) / n_trials
+                print(f"\t\t{avg_time}")
+
+                distance_arr.append(distances)
+                neighbor_arr.append(neighbors)
+
+            distance_arrs.append(distance_arr)
+            neighbor_arrs.append(neighbor_arr)
+
+        for distance_arr, neighbor_arr in zip(distance_arrs, neighbor_arrs):
+            for d1, d2, n1, n2 in zip(
+                distance_arr, distance_arr[1:], neighbor_arr, neighbor_arr[1:]
+            ):
+                if not np.array_equal(d1, d2):
+                    print("Distances are not equal")
+                    print(np.sum(np.absolute(d1 - d2)))
+                if not np.array_equal(n1, n2):
+                    print("Neighbors are not the same")
+                    _n1 = set(n1[n1 != n2])
+                    _n2 = set(n2[n1 != n2])
+                    print(_n1.symmetric_difference(_n2))

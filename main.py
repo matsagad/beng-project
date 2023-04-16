@@ -50,6 +50,7 @@ def main():
     # bm_ex.mi_estimation_table()
     # bm_ex.sklearn_nested_parallelism()
     # bm_ex.genetic_multiprocessing_overhead()
+    # bm_ex.nearest_neighbours_novelty()
 
     """
     Exploring changes in MI estimates as methodology is tweaked.
