@@ -275,6 +275,7 @@ class NoveltySearchJob(Job):
             "novelty_threshold": 0.05,
             "archival_rate_threshold": 4,
             "archival_stagnation_threshold": 5,
+            "max_archival_rate": -1,
             "n_neighbors": 15,
             # Penalty functions
             "target_states": -1,
@@ -427,6 +428,7 @@ class NoveltySearchJob(Job):
             novelty_threshold=float(_args["novelty_threshold"]),
             archival_rate_threshold=int(_args["archival_rate_threshold"]),
             archival_stagnation_threshold=int(_args["archival_stagnation_threshold"]),
+            max_archival_rate=int(_args["max_archival_rate"]),
             n_neighbors=int(_args["n_neighbors"]),
             n_processors=int(_args["n_processors"]),
             model_generator_params=mg_params,

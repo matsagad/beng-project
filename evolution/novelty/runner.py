@@ -68,6 +68,7 @@ class NoveltySearchRunner:
         novelty_threshold: float = 0.05,
         archival_rate_threshold: int = 4,
         archival_stagnation_threshold: int = 5,
+        max_archival_rate: int = -1,
         n_neighbors: int = 15,
         n_processors: int = 10,
         runs_per_model: int = 3,
@@ -187,34 +188,46 @@ class NoveltySearchRunner:
 
                 nn.fit(nn_arrays)
                 distances, neighbors = (
-                    arr[:, 1:] for arr in nn.kneighbors(nn_arrays, return_distance=True)
+                    arr[:, 1:]
+                    for arr in nn.kneighbors(
+                        nn_arrays[: len(models)], return_distance=True
+                    )
                 )
-            novelties = np.average(distances, axis=1)
+            novelties = [
+                # Scale by two as max(MI)=2, max(Novelty)=1
+                self.scale_fitness(wrapper.model, 2 * d) / 2
+                for d, wrapper in zip(np.average(distances, axis=1), models)
+            ]
             fitnesses = np.array(
                 [wrapper.fitness for wrapper in models + novelty_archive]
             )
 
             # Archive models and adjust thresholds if necessary
-            num_models_archived = 0
+            models_to_archive = []
             for wrapper, k_neighbors, novelty in zip(models, neighbors, novelties):
                 # Find local competition score
                 wrapper.local_fitness = np.sum(wrapper.fitness > fitnesses[k_neighbors])
                 wrapper.novelty = novelty
 
                 if novelty > novelty_threshold:
-                    novelty_archive.append(wrapper)
-                    num_models_archived += 1
+                    models_to_archive.append(wrapper)
 
-            if num_models_archived > archival_rate_threshold:
-                novelty_threshold = min(1, 1.05 * novelty_threshold)
+            if max_archival_rate == -1:
+                novelty_archive.extend(models_to_archive)
+                num_models_archived = len(models_to_archive)
 
-            if num_models_archived == 0:
-                num_iterations_without_archive += 1
+                if num_models_archived > archival_rate_threshold:
+                    novelty_threshold = min(1, 1.05 * novelty_threshold)
+
+                if num_models_archived == 0:
+                    num_iterations_without_archive += 1
+                else:
+                    num_iterations_without_archive = 0
+
+                if num_iterations_without_archive > archival_stagnation_threshold:
+                    novelty_threshold *= 0.95
             else:
-                num_iterations_without_archive = 0
-
-            if num_iterations_without_archive > archival_stagnation_threshold:
-                novelty_threshold *= 0.95
+                novelty_archive.extend(models_to_archive[:max_archival_rate])
 
             # Keep Pareto optimal front and those succeeding as elites
             fronts = self.get_pareto_fronts(models)
