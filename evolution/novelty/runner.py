@@ -1,5 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from evolution.novelty.metrics import TrajectoryMetric
+from evolution.novelty.metrics import TrajectoryMetric, TopologyMetric
 from evolution.wrapper import ModelWrapper
 from functools import reduce
 from models.generator import ModelGenerator
@@ -42,21 +42,31 @@ class NoveltySearchRunner:
         self.runner_stats = {"avg_time_duration": []}
 
     def evaluate_wrapper(
-        model: PromoterModel, index: int, find_classes: bool = False
+        model: PromoterModel,
+        index: int,
+        find_classes: bool = False,
+        find_feature_vector: bool = False,
     ) -> Tuple[int, float, float]:
-        return (index, *NoveltySearchRunner.mp_instance._evaluate(model, find_classes))
+        return (
+            index,
+            *NoveltySearchRunner.mp_instance._evaluate(
+                model, find_classes, find_feature_vector
+            ),
+        )
 
     def _evaluate(
-        self, model: PromoterModel, find_classes: bool
+        self, model: PromoterModel, find_classes: bool, find_feature_vector: bool
     ) -> Tuple[float, float, NDArray | None]:
         mi = self.pip.evaluate(model, verbose=False)
-        classes = None
+        classes, feature_vector = None, None
         if find_classes:
             dist_traj = self.prob_pip.simulator.simulate(model)
             classes = np.mean(
                 self.prob_pip.estimator._split_classes(model, dist_traj), axis=1
             )
-        return self.scale_fitness(model, mi), mi, classes
+        if find_feature_vector:
+            feature_vector = TopologyMetric.get_feature_vector(model)
+        return self.scale_fitness(model, mi), mi, classes, feature_vector
 
     def run(
         self,
@@ -124,13 +134,18 @@ class NoveltySearchRunner:
         num_digits = len(str(iterations))
 
         if linear_metric:
-            nn = NearestNeighbors(
-                n_neighbors=n_neighbors + 1,  # excluding self
-                algorithm="ball_tree",
-                metric=TrajectoryMetric.rms_js_metric_for_trajectories,
-                n_jobs=-1,
-            )
+            # Use Jensen-Shannon divergence on trajectories
+            metric = TrajectoryMetric.rms_js_metric_for_trajectories
+        else:
+            # Use Wasserstein Weisfeiler-Lehman distance on line digraph
+            metric = TopologyMetric.wwl_metric_for_serialised_wl_feature_vectors
 
+        nn = NearestNeighbors(
+            n_neighbors=n_neighbors + 1,  # excluding self
+            algorithm="ball_tree",
+            metric=metric,
+            n_jobs=-1,
+        )
         novelty_archive = []
         num_iterations_without_archive = 0
 
@@ -150,25 +165,37 @@ class NoveltySearchRunner:
                 for i, wrapper in enumerate(models):
                     if wrapper.runs_left > 0:
                         find_classes = linear_metric and wrapper.classes is None
+                        find_feature_vector = (
+                            not linear_metric and wrapper.feature_vector is None
+                        )
                         futures.append(
                             executor.submit(
                                 NoveltySearchRunner.evaluate_wrapper,
                                 wrapper.model,
                                 i,
                                 find_classes,
+                                find_feature_vector,
                             )
                         )
                     else:
                         heapq.heappush(top_models, wrapper)
 
                 for future in as_completed(futures):
-                    i, curr_fitness, curr_mi, curr_classes = future.result()
+                    (
+                        i,
+                        curr_fitness,
+                        curr_mi,
+                        curr_classes,
+                        curr_feature_vector,
+                    ) = future.result()
                     wrapper = models[i]
                     avg_fitness, avg_mi = wrapper.fitness, wrapper.mi
                     runs_left = wrapper.runs_left
 
                     if wrapper.classes is None:
                         wrapper.classes = curr_classes
+                    if wrapper.feature_vector is None:
+                        wrapper.feature_vector = curr_feature_vector
 
                     # Find running average for fitness and MI of each model
                     fitness = (
@@ -183,16 +210,24 @@ class NoveltySearchRunner:
             # Find novelties and local competition between models
             if linear_metric:
                 nn_arrays = np.array(
-                    [wrapper.as_nn_array() for wrapper in models + novelty_archive]
+                    [
+                        wrapper.as_nn_array(linear=linear_metric)
+                        for wrapper in models + novelty_archive
+                    ]
                 )
+            else:
+                feature_vectors = [
+                    wrapper.as_nn_array(linear=linear_metric)
+                    for wrapper in models + novelty_archive
+                ]
+                nn_arrays = TopologyMetric.serialise(feature_vectors)
 
-                nn.fit(nn_arrays)
-                distances, neighbors = (
-                    arr[:, 1:]
-                    for arr in nn.kneighbors(
-                        nn_arrays[: len(models)], return_distance=True
-                    )
-                )
+            nn.fit(nn_arrays)
+            distances, neighbors = (
+                arr[:, 1:]
+                for arr in nn.kneighbors(nn_arrays[: len(models)], return_distance=True)
+            )
+
             novelties = [
                 # Scale by two as max(MI)=2, max(Novelty)=1
                 self.scale_fitness(wrapper.model, 2 * d) / 2
@@ -333,8 +368,9 @@ class NoveltySearchRunner:
                 break
 
             # Use selection operator to choose parents for next generation
+            max_rank = max(wrapper.rank for wrapper in models)
             parents = self.select(
-                np.array([wrapper.rank for wrapper in models]),
+                np.array([max_rank - wrapper.rank for wrapper in models]),
                 n=num_children,
             )
             np.random.shuffle(parents)
