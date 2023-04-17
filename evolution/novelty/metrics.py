@@ -55,10 +55,12 @@ class TrajectoryMetric:
 
 
 class TopologyMetric:
+    PAD_ENTRY = -1
+
     def _to_line_digraph(model: PromoterModel) -> Tuple[List[int], NDArray]:
         """
         Convert model's architecture to a line digraph based on the TF dependent
-        on each edge. 
+        on each edge.
         """
         adj_matrix = model.rate_fn_matrix
         indicator = np.array(
@@ -94,37 +96,36 @@ class TopologyMetric:
         ]
         return line_labels, line_matrix
 
+    def _hash(object: any) -> int:
+        """
+        Note: getting only the last 16 digits of hashlib.sha256 does not guarantee
+        a perfect hash as is technically required. However, it is rather unlikely
+        to have collisions and is computationally efficient.
+        """
+        return (
+            int(hashlib.sha256(json.dumps(object).encode("utf-8")).hexdigest(), 16)
+            % 10**16
+        )
+
     def weisfeiler_lehman_iterate(
         labels: List[int], graph: NDArray, h_iterations: int = 3
     ) -> List[List[int]]:
         """
         Weisfeiler-Lehman iteration scheme
 
-        Note: getting only the last 16 digits of hashlib.sha256 does not guarantee
-        a perfect hash as is technically required. However, it is rather unlikely
-        to have collisions and is computationally efficient.
         """
-        hash_labels = [labels]
+        hash_labels = [[TopologyMetric._hash(int(label)) for label in labels]]
         neighborhood = [[i for i, is_adj in enumerate(row) if is_adj] for row in graph]
 
         for _ in range(h_iterations):
             curr_labels = hash_labels[-1]
             new_labels = [
-                int(
-                    hashlib.sha256(
-                        json.dumps(
-                            (
-                                int(v_label),
-                                *(
-                                    int(curr_labels[neighbor])
-                                    for neighbor in neighborhood[i]
-                                ),
-                            )
-                        ).encode("utf-8")
-                    ).hexdigest(),
-                    16,
+                TopologyMetric._hash(
+                    (
+                        int(v_label),
+                        *(int(curr_labels[neighbor]) for neighbor in neighborhood[i]),
+                    )
                 )
-                % 10**16
                 for i, v_label in enumerate(curr_labels)
             ]
             hash_labels.append(new_labels)
@@ -132,6 +133,10 @@ class TopologyMetric:
         # Transpose so trailing dimension is the number of iterations
         return np.array(hash_labels).T
 
+    def get_feature_vector(model) -> NDArray:
+        return TopologyMetric.weisfeiler_lehman_iterate(
+            *TopologyMetric._to_line_digraph(model)
+        )
 
     def wwl_metric_for_models(model: PromoterModel, other: PromoterModel) -> float:
         """
@@ -151,10 +156,7 @@ class TopologyMetric:
         calculating the transport matrix are both followed as done by Togninalli et al.
         """
         f_model, f_other = (
-            TopologyMetric.weisfeiler_lehman_iterate(
-                *TopologyMetric._to_line_digraph(m)
-            )
-            for m in (model, other)
+            TopologyMetric.get_feature_vector(m) for m in (model, other)
         )
 
         return TopologyMetric.wwl_metric_for_wl_feature_vectors(f_model, f_other)
@@ -162,12 +164,36 @@ class TopologyMetric:
     def wwl_metric_for_wl_feature_vectors(f_p: NDArray, f_q: NDArray) -> float:
         """
         A metric to act on pre-computed Weisfeiler-Lehman feature vectors.
-        This is mostly so the sklearn NearestNeighbors API (with the ball tree
-        algorithm) can be used, as it only works for numerical arrays as points
-        in the feature space.
         """
         D = pairwise_distances(f_p, f_q, metric="hamming")
         P_min = ot.emd([], [], D)
         distance = np.sum(P_min * D)
 
         return distance
+
+    def wwl_metric_for_serialised_wl_feature_vectors(
+        f_p: NDArray, f_q: NDArray
+    ) -> float:
+        """
+        This acts as an adapter to the sklearn NearestNeighbors API as it
+        only works for numerical arrays as points in the feature space, all
+        arranged in a single 2D matrix.
+        """
+        return TopologyMetric.wwl_metric_for_wl_feature_vectors(
+            TopologyMetric.deserialise(f_p), TopologyMetric.deserialise(f_q)
+        )
+
+    def serialise(feature_vectors: List[NDArray]) -> NDArray:
+        f_lens = [len(f) for f in feature_vectors]
+        dim = max(f_lens)
+        # Use -1 as hash implementation is stricly positive
+        nn_arrays = np.zeros((len(feature_vectors), dim)) + TopologyMetric.PAD_ENTRY
+        nn_arrays[np.arange(dim) < np.array(f_lens)[:, None]] = np.concatenate(
+            feature_vectors
+        )
+        return nn_arrays
+
+    def deserialise(feature_vector: NDArray, h_iterations: int = 3) -> NDArray:
+        return feature_vector[
+            np.where(feature_vector != TopologyMetric.PAD_ENTRY)
+        ].reshape((-1, h_iterations + 1))
