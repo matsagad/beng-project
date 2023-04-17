@@ -13,6 +13,7 @@ class ModelWrapper:
         runs_left: int = 3,
         novelty: float = 0,
         classes: NDArray = None,
+        feature_vector: NDArray = None,
     ):
         self.model = model
         self.fitness = fitness
@@ -20,6 +21,7 @@ class ModelWrapper:
         self.runs_left = runs_left
         self.novelty = novelty
         self.classes = classes
+        self.feature_vector = feature_vector
 
     def __lt__(self, other: "ModelWrapper") -> bool:
         """
@@ -30,10 +32,14 @@ class ModelWrapper:
     def as_tuple(self) -> Tuple[float, float, int, PromoterModel]:
         return self.fitness, self.mi, self.runs_left, self.model
 
-    def as_nn_array(self) -> NDArray:
-        return self.classes.flatten()
+    def as_nn_array(self, linear: bool = True) -> NDArray:
+        return self.classes.flatten() if linear else self.feature_vector.flatten()
 
     def dominates(self, other: "ModelWrapper") -> bool:
-        not_worse = self.novelty >= other.novelty and self.local_fitness >= other.local_fitness
-        is_better = self.novelty > other.novelty or self.local_fitness > other.local_fitness
+        not_worse = (
+            self.novelty >= other.novelty and self.local_fitness >= other.local_fitness
+        )
+        is_better = (
+            self.novelty > other.novelty or self.local_fitness > other.local_fitness
+        )
         return not_worse and is_better
