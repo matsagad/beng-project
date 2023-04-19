@@ -272,9 +272,9 @@ class NoveltySearchJob(Job):
             "p_edge": 0.5,
             # Novelty specifics
             "linear_metric": "True",
-            "novelty_threshold": 0.05,
+            "novelty_threshold": -1,
             "archival_rate_threshold": 4,
-            "archival_stagnation_threshold": 5,
+            "archival_stagnation_threshold": 3,
             "max_archival_rate": -1,
             "n_neighbors": 15,
             # Penalty functions
