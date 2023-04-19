@@ -14,6 +14,7 @@ class ModelWrapper:
         novelty: float = 0,
         classes: NDArray = None,
         feature_vector: NDArray = None,
+        archive_position: int = -1,
     ):
         self.model = model
         self.fitness = fitness
@@ -22,6 +23,7 @@ class ModelWrapper:
         self.novelty = novelty
         self.classes = classes
         self.feature_vector = feature_vector
+        self.archive_position = archive_position
 
     def __lt__(self, other: "ModelWrapper") -> bool:
         """

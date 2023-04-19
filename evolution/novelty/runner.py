@@ -75,9 +75,9 @@ class NoveltySearchRunner:
         elite_ratio: float = 0.2,
         iterations: int = 100,
         linear_metric: bool = True,
-        novelty_threshold: float = 0.05,
+        novelty_threshold: float = -1,
         archival_rate_threshold: int = 4,
-        archival_stagnation_threshold: int = 5,
+        archival_stagnation_threshold: int = 3,
         max_archival_rate: int = -1,
         n_neighbors: int = 15,
         n_processors: int = 10,
@@ -208,17 +208,17 @@ class NoveltySearchRunner:
                     heapq.heappush(top_models, wrapper)
 
             # Find novelties and local competition between models
+            collective = models + novelty_archive
             if linear_metric:
                 nn_arrays = np.array(
                     [
                         wrapper.as_nn_array(linear=linear_metric)
-                        for wrapper in models + novelty_archive
+                        for wrapper in collective
                     ]
                 )
             else:
                 feature_vectors = [
-                    wrapper.as_nn_array(linear=linear_metric)
-                    for wrapper in models + novelty_archive
+                    wrapper.as_nn_array(linear=linear_metric) for wrapper in collective
                 ]
                 nn_arrays = TopologyMetric.serialise(feature_vectors)
 
@@ -233,22 +233,75 @@ class NoveltySearchRunner:
                 self.scale_fitness(wrapper.model, 2 * d) / 2
                 for d, wrapper in zip(np.average(distances, axis=1), models)
             ]
-            fitnesses = np.array(
-                [wrapper.fitness for wrapper in models + novelty_archive]
-            )
+            fitnesses = np.array([wrapper.fitness for wrapper in collective])
+
+            # If novelty threshold is not specified then set it to the top Nth model's novelty
+            # where N is the max_archival_rate or (arbitrarily chosen) minimum between 10 and 10%
+            if iter == 0 and novelty_threshold == -1:
+                max_in_first_iteration = (
+                    max_archival_rate
+                    if max_archival_rate > 0
+                    else min(10, population // 10)
+                )
+                novelty_threshold = (
+                    sorted(novelties, reverse=True)[:max_in_first_iteration][-1] - 0.001
+                )
 
             # Archive models and adjust thresholds if necessary
             models_to_archive = []
-            for wrapper, k_neighbors, novelty in zip(models, neighbors, novelties):
+            swaps = {}
+            for i, (wrapper, k_neighbors, novelty) in enumerate(
+                zip(models, neighbors, novelties)
+            ):
                 # Find local competition score
                 wrapper.local_fitness = np.sum(wrapper.fitness > fitnesses[k_neighbors])
                 wrapper.novelty = novelty
 
                 if novelty > novelty_threshold:
                     models_to_archive.append(wrapper)
+                else:
+                    closest_neighbor = next(
+                        (
+                            collective[neighbor]
+                            for neighbor in k_neighbors
+                            if collective[neighbor].archive_position > 0
+                        ),
+                        None,
+                    )
+                    if (
+                        closest_neighbor is not None
+                        and wrapper.fitness > closest_neighbor.fitness
+                    ):
+                        swap_ref = (wrapper.fitness - closest_neighbor.fitness, i)
+                        if (
+                            closest_neighbor.archive_position not in swaps
+                            or swap_ref[0] > swaps[closest_neighbor.archive_position][0]
+                        ):
+                            swaps[closest_neighbor.archive_position] = swap_ref
 
+            for archive_position, (_, index) in swaps.items():
+                wrapper = models[index]
+                archived_to_swap = novelty_archive[archive_position]
+
+                models[index] = archived_to_swap
+                novelty_archive[archive_position] = wrapper
+
+                wrapper.archive_position = archive_position
+                archived_to_swap.archive_position = -1
+                archived_to_swap.novelty = wrapper.novelty
+
+            ## Archive models if constraints permit
+            if max_archival_rate > 0:
+                models_to_archive = models_to_archive[:max_archival_rate]
+
+            curr_archive_size = len(novelty_archive)
+            for i, wrapper in enumerate(models_to_archive):
+                wrapper.archive_position = curr_archive_size + i
+
+            novelty_archive.extend(models_to_archive)
+
+            ## Adjust threshold
             if max_archival_rate == -1:
-                novelty_archive.extend(models_to_archive)
                 num_models_archived = len(models_to_archive)
 
                 if num_models_archived > archival_rate_threshold:
@@ -259,10 +312,8 @@ class NoveltySearchRunner:
                 else:
                     num_iterations_without_archive = 0
 
-                if num_iterations_without_archive > archival_stagnation_threshold:
+                if num_iterations_without_archive >= archival_stagnation_threshold:
                     novelty_threshold *= 0.95
-            else:
-                novelty_archive.extend(models_to_archive[:max_archival_rate])
 
             # Keep Pareto optimal front and those succeeding as elites
             fronts = self.get_pareto_fronts(models)
@@ -407,8 +458,8 @@ class NoveltySearchRunner:
         """
         Fast non-dominated sort as in NSGA II by Deb et al.
         """
+        wrappers = set(wrappers)
         fronts = [[]]
-
         for wrapper in wrappers:
             dominated = []
             num_dominated_by = 0
