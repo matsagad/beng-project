@@ -137,3 +137,37 @@ class MutationOperator:
     def edit_edge(model: PromoterModel, p: float = 0.4) -> PromoterModel:
         MutationOperator._modify_edge(model, p, True, False)
         return model
+
+    def add_vertex(
+        model: PromoterModel, p: float = 0.1, p_edge: float = 0.25
+    ) -> PromoterModel:
+        if not bool(np.random.binomial(1, p)):
+            return model
+        rate_fn_matrix = model.rate_fn_matrix
+        num_states = len(rate_fn_matrix)
+
+        connect_to_state = np.zeros(num_states, dtype=bool)
+
+        # Randomly choose one state to connect to
+        connect_to_state[np.random.choice(num_states)] = True
+        # Randomly choose other states to connect to
+        connect_to_state[np.random.binomial(1, p_edge, num_states)] = True
+
+        for row, connect in zip(rate_fn_matrix, connect_to_state):
+            row.append(ModelGenerator.get_random_rate_fn() if connect else None)
+
+        rate_fn_matrix.append(
+            [
+                ModelGenerator.get_random_rate_fn() if connect else None
+                for connect in connect_to_state
+            ]
+            + [None]
+        )
+        model.activity_weights = np.append(model.activity_weights, np.random.uniform())
+        
+        # Update model stats
+        model.num_states += 1
+        model.num_edges += 2 * np.sum(connect_to_state)
+        model.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
+
+        return model
