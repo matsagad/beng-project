@@ -101,7 +101,8 @@ class GeneticAlgorithmJob(Job):
             MutationOperator.add_edge,
             MutationOperator.flip_tf,
             MutationOperator.add_noise,
-            MutationOperator.add_vertex
+            MutationOperator.remove_vertex,
+            MutationOperator.add_vertex,
         ]
 
         if _args["one_active_state"] == "False":
@@ -364,6 +365,7 @@ class NoveltySearchJob(Job):
             MutationOperator.add_edge,
             MutationOperator.flip_tf,
             MutationOperator.add_noise,
+            MutationOperator.remove_vertex,
             MutationOperator.add_vertex,
         ]
 

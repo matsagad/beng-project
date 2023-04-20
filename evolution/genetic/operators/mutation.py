@@ -164,10 +164,55 @@ class MutationOperator:
             + [None]
         )
         model.activity_weights = np.append(model.activity_weights, np.random.uniform())
-        
+
         # Update model stats
         model.num_states += 1
         model.num_edges += 2 * np.sum(connect_to_state)
+        model.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
+
+        return model
+
+    def remove_vertex(model: PromoterModel, p: float = 0.1) -> PromoterModel:
+        if model.num_states == 2 or not bool(np.random.binomial(1, p)):
+            return model
+
+        rate_fn_matrix = model.rate_fn_matrix
+        connected_states = set(
+            i for i, rate_fn in enumerate(rate_fn_matrix[-1]) if rate_fn is not None
+        )
+
+        # Remove last state
+        for i, row in enumerate(rate_fn_matrix):
+            rate_fn_matrix[i] = row[:-1]
+        rate_fn_matrix.pop(-1)
+
+        # Union-find for which neighbors are connected
+        groups = {}
+
+        count = 0
+        for state in connected_states:
+            if state not in groups:
+                groups[state] = count
+                for i, rate_fn in enumerate(rate_fn_matrix[state]):
+                    if i in connected_states and rate_fn is not None:
+                        groups[i] = count
+                count += 1
+
+        state_groups = [[] for _ in range(count)]
+        for state, group in groups.items():
+            state_groups[group].append(state)
+        np.random.shuffle(state_groups)
+
+        for group, next_group in zip(state_groups, state_groups[1:]):
+            state1, state2 = group[0], next_group[0]
+            rate_fn_matrix[state1][state2] = ModelGenerator.get_random_rate_fn()
+            rate_fn_matrix[state2][state1] = ModelGenerator.get_random_rate_fn()
+
+        model.activity_weights = model.activity_weights[:-1]
+
+        # Update model stats
+        model.num_states -= 1
+        model.num_edges = sum(sum(map(bool, row)) for row in rate_fn_matrix)
         model.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
 
         return model
