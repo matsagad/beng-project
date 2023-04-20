@@ -316,7 +316,9 @@ class NoveltySearchRunner:
                     novelty_threshold *= 0.95
 
             # Keep Pareto optimal front and those succeeding as elites
-            fronts = self.get_pareto_fronts(models)
+            ## Exclude archived models from being delegated to a front but
+            ## still assign them with a rank (i.e. front number).
+            fronts = self.get_pareto_fronts(models, exclude_archived=True)
             elite = []
 
             i = 0
@@ -453,12 +455,11 @@ class NoveltySearchRunner:
         )
 
     def get_pareto_fronts(
-        self, wrappers: List[ModelWrapper]
+        self, wrappers: List[ModelWrapper], exclude_archived: bool = True
     ) -> List[List[ModelWrapper]]:
         """
         Fast non-dominated sort as in NSGA II by Deb et al.
         """
-        wrappers = set(wrappers)
         fronts = [[]]
         for wrapper in wrappers:
             dominated = []
@@ -483,11 +484,19 @@ class NoveltySearchRunner:
             for wrapper in fronts[curr_front]:
                 for other in wrapper.dominated:
                     other.num_dominated_by -= 1
-                    if other.num_dominated_by == 0:
-                        other.rank = curr_front + 1
-                        next_front.append(other)
+                    if other.num_dominated_by > 0:
+                        continue
+                    other.rank = curr_front + 1
+                    next_front.append(other)
             curr_front += 1
             fronts.append(next_front)
 
         # Remove last (empty) front
-        return fronts[:-1]
+        return [
+            [
+                wrapper
+                for wrapper in front
+                if not exclude_archived or wrapper.archive_position == -1
+            ]
+            for front in fronts[:-1]
+        ]
