@@ -84,7 +84,7 @@ class CrossoverOperator:
             )
 
         return [
-            PromoterModel(child).with_activity_weights(
+            PromoterModel(child.tolist()).with_activity_weights(
                 np.concatenate(
                     (
                         fst_copy(fst.activity_weights[:split]),
@@ -328,7 +328,7 @@ class CrossoverOperator:
 
         parents = (model, other)
         return [
-            PromoterModel(child_matrix).with_activity_weights(
+            PromoterModel(child_matrix.tolist()).with_activity_weights(
                 np.concatenate(
                     (
                         parents[i].activity_weights[sorted(vertex_sets[i][0])],
