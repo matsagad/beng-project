@@ -21,13 +21,18 @@ The project's structure is given as follows:
 ├── cache                         # Cached JSONs, numpy arrays, and images
 ├── data                          # Experimental data
 ├── /evolution
-│   └── /genetic
-│       ├── /operators             
-│       │   ├── crossover.py      # Crossover operators for promoter models
-│       │   ├── mutation.py       # Mutation operators for promoter models 
-│       │   └── selection.py      # Selection operators for promoter models
-│       ├── penalty.py            # A collection of penalty functions
-│       └── runner.py             # Genetic algorithm runner
+│   ├─── /genetic
+│   │   ├── /operators             
+│   │   │   ├── crossover.py      # Crossover operators for promoter models
+│   │   │   ├── mutation.py       # Mutation operators for promoter models 
+│   │   │   └── selection.py      # Selection operators for promoter models
+│   │   ├── penalty.py            # A collection of penalty functions
+│   │   └── runner.py             # Genetic algorithm runner
+│   ├─── /novelty
+│   │   ├── metrics.py            # Distance metrics for promoter models
+│   │   └── runner.py             # Novelty search with local competition runner
+│   └── wrapper.py                # Model wrapper for storing stats, e.g. fitness
+│
 ├── /examples
 │   ├── benchmarking.py           # Benchmarking of simulations
 │   ├── genetic_analysis.py       # Analysis of past GA runs
@@ -61,6 +66,7 @@ The project's structure is given as follows:
 │   ├── one_step.py               # One-step Master equation simulator
 │   └── simulator.py              # Abstract class for trajectory simulators
 ├── /tests
+│   ├── distance_metrics.py       # Tests promoter model distances are metrics
 │   ├── genetic_operator.py       # Tests genetic operators behave as expected
 │   ├── mi_estimation.py          # Tests MI estimation is robust
 │   └── test.py                   # Class for running and tallying tests
