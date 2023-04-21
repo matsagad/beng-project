@@ -21,11 +21,9 @@ class PromoterModel:
         # Only active state is first state by default
         self.activity_weights = np.zeros(len(rate_fn_matrix))
         self.activity_weights[0] = 1
-        # state, e.g. competing activator)
 
         self.num_states = len(rate_fn_matrix)
         self.num_edges = sum(sum(map(bool, row)) for row in self.rate_fn_matrix)
-        self.numba = False
 
     def with_init_state(
         self, init_state: NDArray[Shape["Any"], Int]
@@ -92,8 +90,6 @@ class PromoterModel:
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
         Q = tau * self.get_generator(exogenous_data)
         scale = 1 << max(0, int((np.log2(norm(Q)))))
-        # if self.numba:
-        #     return np.linalg.matrix_power(numba_expm(Q / scale), scale)
         return np.linalg.matrix_power(expm(Q / scale), scale)
 
     def visualise(
@@ -112,6 +108,7 @@ class PromoterModel:
         from matplotlib import rcParams
 
         # rcParams["text.usetex"] = True
+        # plt.rc("text.latex", preamble="\\usepackage{amsmath}")
 
         # Colors are from the "marumaru gum" palette by sukinapan!
         palette = ["#96beb1", "#fda9a9", "#f3eded", "#82939b", "#b9eedc"]
