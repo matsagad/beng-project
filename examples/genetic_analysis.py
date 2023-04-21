@@ -2,10 +2,13 @@ from collections import Counter
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from utils.data import ClassWithData
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class GeneticAnalysisExamples(ClassWithData):
-    def __init__(self, f_models: str = None, f_stats: str = None, job_id: str = "7361710"):
+    def __init__(
+        self, f_models: str = None, f_stats: str = None, job_id: str = "7361710"
+    ):
         super().__init__()
 
         self.save_pictures = True
@@ -15,7 +18,7 @@ class GeneticAnalysisExamples(ClassWithData):
             self.stats = self.unpickle(f_stats)
             self.job_id = f_stats.split(".")[0]
             return
-        
+
         # Models and stats saved from a genetic algorithm job
         # (Replace with path to where such files exist)
         _job_folder = "jobs"
@@ -296,6 +299,88 @@ class GeneticAnalysisExamples(ClassWithData):
         if self.save_pictures:
             plt.savefig(
                 f"{self.SAVE_FOLDER}/evaluate_tf_presence_in_models.png",
+                bbox_inches="tight",
+                pad_inches=1,
+            )
+            return
+        plt.show()
+
+    def visualise_average_activity(self):
+        """
+        Visualise the average trajectories produced by the top models in comparison
+        with trajectories of TF concentrations.
+        """
+        import os
+        import pickle
+        from models.model import PromoterModel
+
+        show_tfs = True
+        num_models = 200
+
+        pip = OneStepDecodingPipeline(self.data, realised=False)
+        pip.set_parallel()
+
+        TIME_AXIS = 2
+        tf_trajectories = []
+
+        for i in range(self.data.shape[1]):
+            raw_data = np.moveaxis(self.data[:, i], TIME_AXIS, 0)
+            raw_data = raw_data.reshape((*raw_data.shape, 1))
+            trajectory = np.mean(pip.estimator._split_classes(PromoterModel.dummy(), raw_data), axis=1)
+            tf_trajectories.append(trajectory)
+
+        get_trajectories = lambda model: np.mean(
+            pip.estimator._split_classes(model, pip.simulator.simulate(model)), axis=1
+        )
+
+        cached_trajectories = f"{self.CACHING_FOLDER}/{self.job_id}_trajectories.dat"
+
+        if os.path.isfile(cached_trajectories):
+            trajectories = self.unpickle(cached_trajectories)[:num_models]
+        else:
+            print("Finding trajectories")
+
+            trajectories = []
+            for i, (*_, model) in enumerate(self.models[:num_models]):
+                classes = get_trajectories(model)
+                trajectories.append(classes)
+
+            with open(cached_trajectories, "wb") as f:
+                pickle.dump(cached_trajectories, f)
+
+        from matplotlib.colors import rgb2hex
+        from matplotlib.cm import get_cmap
+
+        fig, axes = plt.subplots(4, 1, sharey=True, sharex=True, figsize=(16, 16))
+
+        labels = ["rich", "carbon", "osmotic", "oxidative"]
+        for ax, label in zip(axes, labels):
+            ax.set_ylabel(label)
+
+        cmap = get_cmap("viridis")
+
+        time_scale = np.arange(30)
+        print(self.models[0])
+
+        for i, (tup, trajectory) in enumerate(zip(self.models, trajectories)):
+            for cls_trajectory, ax in zip(trajectory, axes):
+                ax.plot(
+                    time_scale,
+                    cls_trajectory,
+                    # color=rgb2hex(cmap(i / num_models)),
+                    color=rgb2hex(cmap(tup[0] / 2)),
+                    alpha=tup[0] / 2,
+                )
+            print(i)
+
+        if show_tfs:
+            for tf, trajectory in zip(self.tf_names, tf_trajectories):
+                for cls_trajectory, ax in zip(trajectory, axes):
+                    ax.plot(time_scale, cls_trajectory, color="#ff0000", label=tf)
+
+        if self.save_pictures:
+            plt.savefig(
+                f"{self.SAVE_FOLDER}/visualise_average_activity__{self.job_id}.png",
                 bbox_inches="tight",
                 pad_inches=1,
             )
