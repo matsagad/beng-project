@@ -119,7 +119,7 @@ class PromoterModel:
 
         num_colors = 10
         cmap = LinearSegmentedColormap.from_list(
-            "redToGreen", [(0, palette[1]), (1, palette[4])], N=num_colors
+            "redToGreen", [(0, palette[1]), (1, palette[0])], N=num_colors
         )
 
         graph = Graph(directed=True)
