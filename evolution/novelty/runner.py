@@ -136,9 +136,11 @@ class NoveltySearchRunner:
         if linear_metric:
             # Use Jensen-Shannon divergence on trajectories
             metric = TrajectoryMetric.rms_js_metric_for_trajectories
+            epsilon = 0.01
         else:
             # Use Wasserstein Weisfeiler-Lehman distance on line digraph
             metric = TopologyMetric.wwl_metric_for_serialised_wl_feature_vectors
+            epsilon = 0.05
 
         nn = NearestNeighbors(
             n_neighbors=n_neighbors + 1,  # excluding self
@@ -223,17 +225,29 @@ class NoveltySearchRunner:
                 nn_arrays = TopologyMetric.serialise(feature_vectors)
 
             nn.fit(nn_arrays)
-            distances, neighbors = (
-                arr[:, 1:]
-                for arr in nn.kneighbors(nn_arrays[: len(models)], return_distance=True)
+            collective_distances, collective_neighbors = (
+                arr[:, 1:] for arr in nn.kneighbors(nn_arrays, return_distance=True)
             )
 
             novelties = [
                 # Scale by two as max(MI)=2, max(Novelty)=1
                 self.scale_fitness(wrapper.model, 2 * d) / 2
-                for d, wrapper in zip(np.average(distances, axis=1), models)
+                for d, wrapper in zip(
+                    np.average(collective_distances, axis=1), collective
+                )
             ]
             fitnesses = np.array([wrapper.fitness for wrapper in collective])
+
+            # Find two nearest neighbors in the archive to possibly replace them
+            if novelty_archive:
+                nn.fit(nn_arrays[len(models) :])
+                archive_distances, archive_neighbors = nn.kneighbors(
+                    nn_arrays[: len(models)],
+                    n_neighbors=min(2, len(novelty_archive)),
+                    return_distance=True,
+                )
+            else:
+                archive_distances = archive_neighbors = [-1, -1]
 
             # If novelty threshold is not specified then set it to the top Nth model's novelty
             # where N is the max_archival_rate or (arbitrarily chosen) minimum between 10 and 10%
@@ -250,34 +264,37 @@ class NoveltySearchRunner:
             # Archive models and adjust thresholds if necessary
             models_to_archive = []
             swaps = {}
-            for i, (wrapper, k_neighbors, novelty) in enumerate(
-                zip(models, neighbors, novelties)
+            for wrapper, k_neighbors, novelty in zip(
+                collective, collective_neighbors, novelties
             ):
-                # Find local competition score
                 wrapper.local_fitness = np.sum(wrapper.fitness > fitnesses[k_neighbors])
                 wrapper.novelty = novelty
 
-                if novelty > novelty_threshold:
-                    models_to_archive.append(wrapper)
-                else:
-                    closest_neighbor = next(
-                        (
-                            collective[neighbor]
-                            for neighbor in k_neighbors
-                            if collective[neighbor].archive_position > 0
-                        ),
-                        None,
-                    )
-                    if (
-                        closest_neighbor is not None
-                        and wrapper.fitness > closest_neighbor.fitness
+            if novelty_archive:
+                for i, (wrapper, n_archive_neighbors, n_archive_distances) in enumerate(
+                    zip(models, archive_neighbors, archive_distances)
+                ):
+                    closest_archived_neighbor = novelty_archive[n_archive_neighbors[0]]
+
+                    if np.all(n_archive_distances > novelty_threshold):
+                        # Add model to archive if the distance to its two nearest neighbors in the archive
+                        # are above the novelty threshold
+                        models_to_archive.append(wrapper)
+                    elif self.exclusively_epsilon_dominated(
+                        wrapper, closest_archived_neighbor, epsilon=epsilon
                     ):
-                        swap_ref = (wrapper.fitness - closest_neighbor.fitness, i)
+                        # Swap model for its closest archived neighbor if epsilon dominated
+                        swap_ref = (wrapper.fitness, i)
                         if (
-                            closest_neighbor.archive_position not in swaps
-                            or swap_ref[0] > swaps[closest_neighbor.archive_position][0]
+                            closest_archived_neighbor.archive_position not in swaps
+                            or swap_ref[0]
+                            > swaps[closest_archived_neighbor.archive_position][0]
                         ):
-                            swaps[closest_neighbor.archive_position] = swap_ref
+                            swaps[closest_archived_neighbor.archive_position] = swap_ref
+            else:
+                models_to_archive.extend(
+                    wrapper for wrapper in models if wrapper.novelty > novelty_threshold
+                )
 
             for archive_position, (_, index) in swaps.items():
                 wrapper = models[index]
@@ -288,7 +305,6 @@ class NoveltySearchRunner:
 
                 wrapper.archive_position = archive_position
                 archived_to_swap.archive_position = -1
-                archived_to_swap.novelty = wrapper.novelty
 
             ## Archive models if constraints permit
             if max_archival_rate > 0:
@@ -301,19 +317,18 @@ class NoveltySearchRunner:
             novelty_archive.extend(models_to_archive)
 
             ## Adjust threshold
-            if max_archival_rate == -1:
-                num_models_archived = len(models_to_archive)
+            num_models_archived = len(models_to_archive)
 
-                if num_models_archived > archival_rate_threshold:
-                    novelty_threshold = min(1, 1.05 * novelty_threshold)
+            if num_models_archived > archival_rate_threshold:
+                novelty_threshold = min(1, 1.05 * novelty_threshold)
 
-                if num_models_archived == 0:
-                    num_iterations_without_archive += 1
-                else:
-                    num_iterations_without_archive = 0
+            if num_models_archived == 0 and len(swaps) == 0:
+                num_iterations_without_archive += 1
+            else:
+                num_iterations_without_archive = 0
 
-                if num_iterations_without_archive >= archival_stagnation_threshold:
-                    novelty_threshold *= 0.95
+            if num_iterations_without_archive >= archival_stagnation_threshold:
+                novelty_threshold *= 0.95
 
             # Keep Pareto optimal front and those succeeding as elites
             ## Exclude archived models from being delegated to a front but
@@ -500,3 +515,15 @@ class NoveltySearchRunner:
             ]
             for front in fronts[:-1]
         ]
+
+    def exclusively_epsilon_dominated(
+        self, wrapper: ModelWrapper, other: ModelWrapper, epsilon: float = 0.01
+    ) -> bool:
+        return (
+            (wrapper.novelty >= (1 - epsilon) * other.novelty)
+            and (wrapper.fitness >= (1 - epsilon) * other.fitness)
+            and (
+                (wrapper.novelty - other.novelty) * other.fitness
+                > -(wrapper.fitness - other.fitness) * other.novelty
+            )
+        )
