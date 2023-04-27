@@ -337,12 +337,12 @@ class NoveltySearchRunner:
             elite = []
 
             i = 0
-            while len(elite) + len(fronts[i]) <= num_elites:
+            while i < len(fronts) and len(elite) + len(fronts[i]) <= num_elites:
                 elite.extend(fronts[i])
                 i += 1
 
             remaining = num_elites - len(elite)
-            curr_front = sorted(fronts[i], key=lambda x: -x.novelty)
+            curr_front = [] if i >= len(fronts) else sorted(fronts[i], key=lambda x: -x.novelty)
 
             elite.extend(curr_front[:remaining])
             non_elite = curr_front[remaining:]
