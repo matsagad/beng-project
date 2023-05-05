@@ -459,7 +459,9 @@ class NoveltySearchJob(Job):
 
         print("Interrupted. Caching currently found results.")
 
-        archive, models, stats = self.runner.sorted_models, self.runner.runner_stats
+        archive = [wrapper.as_tuple() for wrapper in self.runner.novelty_archive]
+        models = [wrapper.as_tuple() for wrapper in self.runner.models]
+        stats = self.runner.runner_stats
 
         with open(self.default_args["output_file"], "wb") as f:
             pickle.dump(models, f)

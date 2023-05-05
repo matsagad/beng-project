@@ -38,7 +38,8 @@ class NoveltySearchRunner:
         self.select = select
         self.scale_fitness = scale_fitness
 
-        self.sorted_models = []
+        self.models = []
+        self.novelty_archive = []
         self.runner_stats = {"avg_time_duration": []}
 
     def evaluate_wrapper(
@@ -315,6 +316,7 @@ class NoveltySearchRunner:
                 wrapper.archive_position = curr_archive_size + i
 
             novelty_archive.extend(models_to_archive)
+            self.novelty_archive = novelty_archive
 
             ## Adjust threshold
             num_models_archived = len(models_to_archive)
@@ -342,7 +344,9 @@ class NoveltySearchRunner:
                 i += 1
 
             remaining = num_elites - len(elite)
-            curr_front = [] if i >= len(fronts) else sorted(fronts[i], key=lambda x: -x.novelty)
+            curr_front = (
+                [] if i >= len(fronts) else sorted(fronts[i], key=lambda x: -x.novelty)
+            )
 
             elite.extend(curr_front[:remaining])
             non_elite = curr_front[remaining:]
@@ -462,10 +466,11 @@ class NoveltySearchRunner:
                 )
 
             models = elite + children
+            self.models = models
 
         return (
-            [wrapper.as_tuple() for wrapper in novelty_archive],
-            [wrapper.as_tuple() for wrapper in self.sorted_models],
+            [wrapper.as_tuple() for wrapper in self.novelty_archive],
+            [wrapper.as_tuple() for wrapper in self.models],
             self.runner_stats,
         )
 
