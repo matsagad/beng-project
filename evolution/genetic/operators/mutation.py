@@ -123,10 +123,14 @@ class MutationOperator:
         none_indices = none_indices[np.random.binomial(1, p, len(none_indices)) == 1]
 
         for i, j in none_indices:
-            model.rate_fn_matrix[i][j] = ModelGenerator.get_random_rate_fn()
+            model.rate_fn_matrix[i][j] = ModelGenerator.get_random_rate_fn(
+                num_tfs=MutationOperator.TF_COUNT
+            )
             # Create edge in both directions to make reaction reversible
             if reversible:
-                model.rate_fn_matrix[j][i] = ModelGenerator.get_random_rate_fn()
+                model.rate_fn_matrix[j][i] = ModelGenerator.get_random_rate_fn(
+                    num_tfs=MutationOperator.TF_COUNT
+                )
 
     def add_edge(
         model: PromoterModel, p: float = 0.2, reversible: bool = True
