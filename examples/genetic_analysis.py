@@ -197,7 +197,7 @@ class GeneticAnalysisExamples(ClassWithData):
                 "counters": {
                     "edge_freq": Counter(),
                     "freq": Counter(),
-                    "group_freq": Counter(total_combinations),
+                    "group_freq": Counter(),
                 },
                 "color": color,
             }
@@ -208,6 +208,10 @@ class GeneticAnalysisExamples(ClassWithData):
             freq = stats["counters"]["freq"]
             group_freq = stats["counters"]["group_freq"]
             edge_freq = stats["counters"]["edge_freq"]
+
+            freq.update({i: 0 for i in range(num_tfs)})
+            group_freq.update({tf_group: 0 for tf_group in total_combinations})
+            edge_freq.update({i: 0 for i in range(num_tfs)})
 
             for _, _, _, model in stats["models"]:
                 tfs = set()
@@ -326,7 +330,9 @@ class GeneticAnalysisExamples(ClassWithData):
         for i in range(self.data.shape[1]):
             raw_data = np.moveaxis(self.data[:, i], TIME_AXIS, 0)
             raw_data = raw_data.reshape((*raw_data.shape, 1))
-            trajectory = np.mean(pip.estimator._split_classes(PromoterModel.dummy(), raw_data), axis=1)
+            trajectory = np.mean(
+                pip.estimator._split_classes(PromoterModel.dummy(), raw_data), axis=1
+            )
             tf_trajectories.append(trajectory)
 
         get_trajectories = lambda model: np.mean(
