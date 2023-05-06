@@ -154,11 +154,17 @@ class MutationOperator:
         connect_to_state[np.random.binomial(1, p_edge, num_states)] = True
 
         for row, connect in zip(rate_fn_matrix, connect_to_state):
-            row.append(ModelGenerator.get_random_rate_fn() if connect else None)
+            row.append(
+                ModelGenerator.get_random_rate_fn(num_tfs=MutationOperator.TF_COUNT)
+                if connect
+                else None
+            )
 
         rate_fn_matrix.append(
             [
-                ModelGenerator.get_random_rate_fn() if connect else None
+                ModelGenerator.get_random_rate_fn(num_tfs=MutationOperator.TF_COUNT)
+                if connect
+                else None
                 for connect in connect_to_state
             ]
             + [None]
@@ -205,8 +211,12 @@ class MutationOperator:
 
         for group, next_group in zip(state_groups, state_groups[1:]):
             state1, state2 = group[0], next_group[0]
-            rate_fn_matrix[state1][state2] = ModelGenerator.get_random_rate_fn()
-            rate_fn_matrix[state2][state1] = ModelGenerator.get_random_rate_fn()
+            rate_fn_matrix[state1][state2] = ModelGenerator.get_random_rate_fn(
+                num_tfs=MutationOperator.TF_COUNT
+            )
+            rate_fn_matrix[state2][state1] = ModelGenerator.get_random_rate_fn(
+                num_tfs=MutationOperator.TF_COUNT
+            )
 
         model.activity_weights = model.activity_weights[:-1]
 

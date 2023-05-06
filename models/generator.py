@@ -13,7 +13,9 @@ class ModelGenerator:
     ]  # RateFunction.Function.__subclasses__()
     TF_COUNT = 5
 
-    def get_random_rate_fn(low: float = -2, high: float = 2) -> RateFunction:
+    def get_random_rate_fn(
+        low: float = -2, high: float = 2, num_tfs: int = 5
+    ) -> RateFunction:
         rf_cls = np.random.choice(ModelGenerator.RATE_FNS)
         n_rates, n_tfs = rf_cls.num_params()
         return rf_cls(
@@ -25,7 +27,7 @@ class ModelGenerator:
                     n_rates,
                 )
             ).tolist(),
-            tfs=np.random.choice(ModelGenerator.TF_COUNT, n_tfs).tolist(),
+            tfs=np.random.choice(num_tfs, n_tfs).tolist(),
         )
 
     def _find_uniform_spanning_tree(states: int) -> List[Tuple[int, int]]:
@@ -64,14 +66,19 @@ class ModelGenerator:
         p_edge: float = 0.5,
         reversible: bool = True,
         one_active_state: bool = True,
+        num_tfs: int = 5,
     ) -> PromoterModel:
         # Find a random unfirom spanning tree
         ust = ModelGenerator._find_uniform_spanning_tree(states)
         rate_fn_matrix = [[None] * states for _ in range(states)]
         for start, end in ust:
-            rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn()
+            rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn(
+                num_tfs=num_tfs
+            )
             if reversible:
-                rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn()
+                rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn(
+                    num_tfs=num_tfs
+                )
 
         # Connect any other edges with some probability
         unconnected = np.array(
@@ -87,9 +94,13 @@ class ModelGenerator:
         for start, end in unconnected[
             np.random.binomial(1, p_edge, len(unconnected)) == 1
         ]:
-            rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn()
+            rate_fn_matrix[start][end] = ModelGenerator.get_random_rate_fn(
+                num_tfs=num_tfs
+            )
             if reversible:
-                rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn()
+                rate_fn_matrix[end][start] = ModelGenerator.get_random_rate_fn(
+                    num_tfs=num_tfs
+                )
 
         # Must only have one active state
         if one_active_state:

@@ -5,6 +5,7 @@ from evolution.genetic.operators.crossover import CrossoverOperator
 from evolution.genetic.penalty import ModelPenalty
 from evolution.novelty.runner import NoveltySearchRunner
 from jobs.job import Job
+from models.generator import ModelGenerator
 from optimisation.particle_swarm import ParticleSwarm
 from typing import Dict
 from utils.process import get_tf_data
@@ -36,6 +37,7 @@ class GeneticAlgorithmJob(Job):
             # Constraints
             "reversible": "True",
             "one_active_state": "True",
+            "tfs": "maf1,mig1,dot6,tod6,sfp1",
             # I/O and hardware
             "n_processors": 1,
             "cache_folder": "cache",
@@ -77,6 +79,7 @@ class GeneticAlgorithmJob(Job):
           # Constraints
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
+          tfs               List of transcription factors to consider
 
           # I/O and hardware
           n_processors          Number of processors to parallelise model evaluation
@@ -94,7 +97,16 @@ class GeneticAlgorithmJob(Job):
             print(f"[{self.name}] parameters used:")
             print("\n".join(f"\t{name}: {value}" for (name, value) in _args.items()))
 
-        data, _, _, _ = get_tf_data(cache_folder=_args["cache_folder"])
+        data, _, _, tf_names = get_tf_data(cache_folder=_args["cache_folder"])
+
+        tf_index_map = {tf_name: index for index, tf_name in enumerate(tf_names)}
+        self.indices = sorted(
+            index
+            for index in [tf_index_map.get(tf, -1) for tf in _args["tfs"].split(",")]
+            if index >= 0
+        )
+        constrained_data = data[:, self.indices]
+        MutationOperator.TF_COUNT = len(self.indices)
 
         mutations = [
             MutationOperator.edit_edge,
@@ -149,12 +161,15 @@ class GeneticAlgorithmJob(Job):
                 print(f"No such file: {_args['initial_population']} found.")
                 print("Randomly initialising the population instead.")
 
-        self.runner = GeneticRunner(data, mutations, crossover, select, scale_fitness)
+        self.runner = GeneticRunner(
+            constrained_data, mutations, crossover, select, scale_fitness
+        )
 
         mg_params = {
             "reversible": _args["reversible"] == "True",
             "one_active_state": _args["one_active_state"] == "True",
             "p_edge": float(_args["p_edge"]),
+            "num_tfs": len(self.indices),
         }
 
         models, stats = self.runner.run(
@@ -168,6 +183,16 @@ class GeneticAlgorithmJob(Job):
             verbose=True,
             debug=True,
         )
+
+        for *_, model in models:
+            if hasattr(model, "modified") and model.modified:
+                continue
+            model.modified = True
+            for row in model.rate_fn_matrix:
+                for rate_fn in row:
+                    if rate_fn is None or not rate_fn.tfs:
+                        continue
+                    rate_fn.tfs = [self.indices[tf] for tf in rate_fn.tfs]
 
         with open(_args["output_file"], "wb") as f:
             pickle.dump(models, f)
@@ -184,6 +209,16 @@ class GeneticAlgorithmJob(Job):
         print("Interrupted. Caching currently found results.")
 
         models, stats = self.runner.sorted_models, self.runner.runner_stats
+
+        for *_, model in models:
+            if hasattr(model, "modified") and model.modified:
+                continue
+            model.modified = True
+            for row in model.rate_fn_matrix:
+                for rate_fn in row:
+                    if rate_fn is None or not rate_fn.tfs:
+                        continue
+                    rate_fn.tfs = [self.indices[tf] for tf in rate_fn.tfs]
 
         with open(self.default_args["output_file"], "wb") as f:
             pickle.dump(models, f)
@@ -292,6 +327,7 @@ class NoveltySearchJob(Job):
             # Constraints
             "reversible": "True",
             "one_active_state": "True",
+            "tfs": "maf1,mig1,dot6,tod6,sfp1",
             # I/O and hardware
             "n_processors": 1,
             "cache_folder": "cache",
@@ -341,6 +377,7 @@ class NoveltySearchJob(Job):
           # Constraints
           reversible        Flag for if reactions should be reversible (True)
           one_active_state  Flag for if models should have only one active state (True)
+          tfs               List of transcription factors to consider
 
           # I/O and hardware
           n_processors          Number of processors to parallelise model evaluation
@@ -358,7 +395,16 @@ class NoveltySearchJob(Job):
             print(f"[{self.name}] parameters used:")
             print("\n".join(f"\t{name}: {value}" for (name, value) in _args.items()))
 
-        data, _, _, _ = get_tf_data(cache_folder=_args["cache_folder"])
+        data, _, _, tf_names = get_tf_data(cache_folder=_args["cache_folder"])
+
+        tf_index_map = {tf_name: index for index, tf_name in enumerate(tf_names)}
+        self.indices = sorted(
+            index
+            for index in [tf_index_map.get(tf, -1) for tf in _args["tfs"].split(",")]
+            if index >= 0
+        )
+        constrained_data = data[:, self.indices]
+        MutationOperator.TF_COUNT = len(self.indices)
 
         mutations = [
             MutationOperator.edit_edge,
@@ -414,13 +460,14 @@ class NoveltySearchJob(Job):
                 print("Randomly initialising the population instead.")
 
         self.runner = NoveltySearchRunner(
-            data, mutations, crossover, select, scale_fitness
+            constrained_data, mutations, crossover, select, scale_fitness
         )
 
         mg_params = {
             "reversible": _args["reversible"] == "True",
             "one_active_state": _args["one_active_state"] == "True",
             "p_edge": float(_args["p_edge"]),
+            "num_tfs": len(self.indices),
         }
 
         archive, models, stats = self.runner.run(
@@ -440,6 +487,16 @@ class NoveltySearchJob(Job):
             verbose=True,
             debug=True,
         )
+
+        for *_, model in archive + models:
+            if hasattr(model, "modified") and model.modified:
+                continue
+            model.modified = True
+            for row in model.rate_fn_matrix:
+                for rate_fn in row:
+                    if rate_fn is None or not rate_fn.tfs:
+                        continue
+                    rate_fn.tfs = [self.indices[tf] for tf in rate_fn.tfs]
 
         with open(_args["output_file"], "wb") as f:
             pickle.dump(models, f)
@@ -461,6 +518,17 @@ class NoveltySearchJob(Job):
 
         archive = [wrapper.as_tuple() for wrapper in self.runner.novelty_archive]
         models = [wrapper.as_tuple() for wrapper in self.runner.models]
+
+        for *_, model in archive + models:
+            if hasattr(model, "modified") and model.modified:
+                continue
+            model.modified = True
+            for row in model.rate_fn_matrix:
+                for rate_fn in row:
+                    if rate_fn is None or not rate_fn.tfs:
+                        continue
+                    rate_fn.tfs = [self.indices[tf] for tf in rate_fn.tfs]
+
         stats = self.runner.runner_stats
 
         with open(self.default_args["output_file"], "wb") as f:

@@ -229,17 +229,8 @@ class CrossoverOperator:
         ## If model is not elite then it is no longer used in the next generation
         #  and thus its rate functions can be reused. If it is an elite, then its
         #  rate functions should be copied to avoid side-effects from mutations.
-        copies = tuple(
-            (
-                np.array(
-                    copy.deepcopy(p_model.rate_fn_matrix)
-                    if p_model_is_elite
-                    else p_model.rate_fn_matrix
-                )
-                for p_model, p_model_is_elite in zip(
-                    (model, other), (model_is_elite, other_is_elite)
-                )
-            )
+        rate_fns = tuple(
+            (np.array(parent_model.rate_fn_matrix) for parent_model in (model, other))
         )
 
         ## Map old states to new states as indices of states may change
@@ -277,13 +268,15 @@ class CrossoverOperator:
                             [state_maps[child][(activity, j)] for j in dims]
                             for dims in activity_indices
                         )
-                    ] = copies[model_to_choose][activity_indices]
+                    ] = copy.deepcopy(rate_fns[model_to_choose][activity_indices])
 
         # RECOMBINATION: combine the two sets of subgraphs together
         for child, cut_sets in enumerate(
             zip(cut_sets_by_activity[0], cut_sets_by_activity[1][::-1])
         ):
+            parent, other_parent = child, 1 - child
             model_cut_set, other_cut_set = cut_sets
+
             while model_cut_set and other_cut_set:
                 model_edge, other_edge = model_cut_set.pop(), other_cut_set.pop()
 
@@ -291,10 +284,14 @@ class CrossoverOperator:
                     state_maps[child][(0, model_edge[0])],
                     state_maps[child][(1, other_edge[0])],
                 )
-                children[child][index] = copies[child][model_edge]
-                children[child][index[::-1]] = copies[1 - child][other_edge]
+                children[child][index] = copy.deepcopy(rate_fns[parent][model_edge])
+                children[child][index[::-1]] = copy.deepcopy(
+                    rate_fns[other_parent][other_edge]
+                )
 
             for activity, broken_edges in enumerate(cut_sets):
+                chosen_parent = (activity + child) % 2
+
                 for edge_pair in broken_edges:
                     start = state_maps[child][(activity, edge_pair[0])]
                     end = np.random.choice(_num_states[child] - 1)
@@ -305,14 +302,16 @@ class CrossoverOperator:
                         if children[child][
                             index[::scale]
                         ] is None or np.random.binomial(1, 0.5):
-                            children[child][index[::scale]] = copies[
-                                (activity + child) % 2
-                            ][edge_pair[::scale]]
+                            children[child][index[::scale]] = copy.deepcopy(
+                                rate_fns[chosen_parent][edge_pair[::scale]]
+                            )
 
         for child in (0, 1):
             active_set = same_activity_cuts[child][0]
             inactive_set = same_activity_cuts[1 - child][1]
             for activity, broken_edges in enumerate((active_set, inactive_set)):
+                chosen_parent = (child + activity) % 2
+
                 for edge_pair in broken_edges:
                     start = state_maps[child][(activity, edge_pair[0])]
                     end = np.random.choice(_num_states[child] - 1)
@@ -322,9 +321,9 @@ class CrossoverOperator:
                         if children[child][
                             index[::scale]
                         ] is None or np.random.binomial(1, 0.5):
-                            children[child][index[::scale]] = copies[
-                                (child + activity) % 2
-                            ][edge_pair[::scale]]
+                            children[child][index[::scale]] = copy.deepcopy(
+                                rate_fns[chosen_parent][edge_pair[::scale]]
+                            )
 
         parents = (model, other)
         return [
