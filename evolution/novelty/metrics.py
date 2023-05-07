@@ -46,9 +46,52 @@ class TrajectoryMetric:
         distance metric (square root of JS divergence).
         """
         return np.sqrt(
-            (
+            min(
                 TrajectoryMetric.js_divergence(p_traj, q_traj)
-                + TrajectoryMetric.js_divergence(1 - p_traj, 1 - q_traj)
+                + TrajectoryMetric.js_divergence(1 - p_traj, 1 - q_traj),
+                TrajectoryMetric.js_divergence(p_traj, 1 - q_traj)
+                + TrajectoryMetric.js_divergence(1 - p_traj, q_traj),
+            )
+            / p_traj.size
+        )
+
+    def v_kl_divergence(p_dist: NDArray, q_dist: NDArray) -> NDArray:
+        """
+        Vectorised Kullback-Leibler Divergence
+        """
+        non_zero = np.logical_and(p_dist > 0, q_dist > 0)
+        _p_dist = p_dist[non_zero]
+        _q_dist = q_dist[non_zero]
+
+        res = np.zeros(p_dist.shape)
+        res[non_zero] = _p_dist * np.log2(_p_dist / _q_dist)
+
+        return res
+
+    def v_js_divergence(p_dist: NDArray, q_dist: NDArray) -> float:
+        """
+        Vectorised Jensen-Shannon Divergence
+        """
+        m_dist = (p_dist + q_dist) / 2
+        return (
+            TrajectoryMetric.v_kl_divergence(p_dist, m_dist)
+            + TrajectoryMetric.v_kl_divergence(q_dist, m_dist)
+        ) / 2
+
+    def mean_js_metric_for_trajectories(p_traj: NDArray, q_traj: NDArray) -> float:
+        return np.log2(
+            1
+            + (
+                np.sum(
+                    (
+                        np.sqrt(
+                            (
+                                TrajectoryMetric.js_divergence(p_traj, q_traj)
+                                + TrajectoryMetric.js_divergence(1 - p_traj, 1 - q_traj)
+                            )
+                        )
+                    )
+                )
             )
             / p_traj.size
         )
