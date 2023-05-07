@@ -1,6 +1,6 @@
 from models.model import PromoterModel
 from nptyping import NDArray
-from sklearn.metrics import pairwise_distances
+from sklearn.metrics import DistanceMetric
 from typing import Tuple, List
 import hashlib
 import json
@@ -99,6 +99,8 @@ class TrajectoryMetric:
 
 class TopologyMetric:
     PAD_ENTRY = -1
+    d_hamming = DistanceMetric.get_metric("hamming")
+    d_euclidean = DistanceMetric.get_metric("euclidean")
 
     def _to_line_digraph(model: PromoterModel) -> Tuple[List[int], NDArray]:
         """
@@ -224,11 +226,14 @@ class TopologyMetric:
         """
         A metric to act on pre-computed Weisfeiler-Lehman feature vectors.
         """
-        f_p_cat, f_p_cont = np.split(f_p, 2)
-        f_q_cat, f_q_cont = np.split(f_q, 2)
+        p_size = f_p.shape[0] // 2
+        f_p_cat, f_p_cont = f_p[:p_size], f_p[p_size:]
 
-        D_cat = pairwise_distances(f_p_cat, f_q_cat, metric="hamming")
-        D_cont = pairwise_distances(f_p_cont, f_q_cont, metric="euclidean")
+        q_size = f_q.shape[0] // 2
+        f_q_cat, f_q_cont = f_q[:q_size], f_q[q_size:]
+
+        D_cat = TopologyMetric.d_hamming.pairwise(f_p_cat, f_q_cat)
+        D_cont = TopologyMetric.d_euclidean.pairwise(f_p_cont, f_q_cont)
 
         D = (9 * D_cat + D_cont) / 10
 
