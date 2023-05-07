@@ -137,7 +137,13 @@ class TopologyMetric:
             for rate_fn in row
             if rate_fn is not None
         ]
-        return line_labels, line_matrix
+        line_weights = [
+            rate_fn.rates[0]
+            for row in adj_matrix
+            for rate_fn in row
+            if rate_fn is not None
+        ]
+        return line_labels, np.log10(line_weights), line_matrix
 
     def _hash(object: any) -> int:
         """
@@ -151,13 +157,14 @@ class TopologyMetric:
         )
 
     def weisfeiler_lehman_iterate(
-        labels: List[int], graph: NDArray, h_iterations: int = 3
+        labels: List[int], weights: List[float], graph: NDArray, h_iterations: int = 3
     ) -> List[List[int]]:
         """
         Weisfeiler-Lehman iteration scheme
 
         """
         hash_labels = [[TopologyMetric._hash(int(label)) for label in labels]]
+        weight_attributes = [weights]
         neighborhood = [[i for i, is_adj in enumerate(row) if is_adj] for row in graph]
 
         for _ in range(h_iterations):
@@ -173,12 +180,21 @@ class TopologyMetric:
             ]
             hash_labels.append(new_labels)
 
-        # Transpose so trailing dimension is the number of iterations
-        return np.array(hash_labels).T
+            curr_weights = weight_attributes[-1]
+            new_weights = np.array(
+                [
+                    (v_weight + np.mean(curr_weights[neighborhood[i]])) / 2
+                    for i, v_weight in enumerate(curr_weights)
+                ]
+            )
+            weight_attributes.append(new_weights)
 
-    def get_feature_vector(model) -> NDArray:
+        # Transpose so trailing dimension is the number of iterations
+        return np.hstack((np.array(hash_labels), np.array(weight_attributes))).T
+
+    def get_feature_vector(model: PromoterModel, h_iterations: int = 3) -> NDArray:
         return TopologyMetric.weisfeiler_lehman_iterate(
-            *TopologyMetric._to_line_digraph(model)
+            *TopologyMetric._to_line_digraph(model), h_iterations=h_iterations
         )
 
     def wwl_metric_for_models(model: PromoterModel, other: PromoterModel) -> float:
@@ -208,7 +224,14 @@ class TopologyMetric:
         """
         A metric to act on pre-computed Weisfeiler-Lehman feature vectors.
         """
-        D = pairwise_distances(f_p, f_q, metric="hamming")
+        f_p_cat, f_p_cont = np.split(f_p, 2)
+        f_q_cat, f_q_cont = np.split(f_q, 2)
+
+        D_cat = pairwise_distances(f_p_cat, f_q_cat, metric="hamming")
+        D_cont = pairwise_distances(f_p_cont, f_q_cont, metric="euclidean")
+
+        D = (9 * D_cat + D_cont) / 10
+
         P_min = ot.emd([], [], D)
         distance = np.sum(P_min * D)
 
