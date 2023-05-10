@@ -374,3 +374,55 @@ class BenchmarkingExamples(ClassWithData):
                     _n1 = set(n1[n1 != n2])
                     _n2 = set(n2[n1 != n2])
                     print(_n1.symmetric_difference(_n2))
+
+    def nearest_neighbors_multiprocessing(self):
+        """
+        Benchmark execution time of sklearn nearest neighbors (given the
+        TopologyMetric in this case). Within the call to kneighbors, a
+        preference for "threads" is set by default and thus succumbs to the GIL.
+        To overcome this, we wrap the function call around an environment
+        with a loky/multiprocessing parallel backend.
+        """
+        max_processors = 10
+
+        model_counts = [100, 200, 500]
+        processor_counts = np.linspace(1, max_processors, 5, dtype=int)
+
+        from evolution.novelty.metrics import TopologyMetric
+
+        feature_vectors = [
+            TopologyMetric.get_feature_vector(
+                ModelGenerator.get_random_model(6, one_active_state=False)
+            ).flatten()
+            for _ in range(max(model_counts))
+        ]
+        nn_arrays = TopologyMetric.serialise(feature_vectors)
+
+        from sklearn.neighbors import NearestNeighbors
+        from joblib import parallel_backend
+
+        times = np.zeros((len(model_counts), len(processor_counts)))
+
+        for backend in ("threading", "loky"):
+            print(f"\n{backend} backend:")
+            for i, n_models in enumerate(model_counts):
+                print(f"\t{n_models} models:")
+                for j, n_processors in enumerate(processor_counts):
+                    nn = NearestNeighbors(
+                        n_neighbors=15,
+                        algorithm="ball_tree",
+                        metric=TopologyMetric.wwl_metric_for_serialised_wl_feature_vectors,
+                        n_jobs=n_processors,
+                    )
+
+                    nn.fit(nn_arrays[:n_models])
+
+                    with parallel_backend(backend):
+                        start = time.time()
+                        nn.kneighbors(nn_arrays[:n_models], return_distance=True)
+                        bench_time = time.time() - start
+
+                    times[i, j] = bench_time
+                    print(f"\t\tn_jobs={n_processors}: {bench_time:.3f}s")
+
+        print(times)
