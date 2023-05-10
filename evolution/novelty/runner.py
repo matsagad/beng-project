@@ -2,6 +2,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from evolution.novelty.metrics import TrajectoryMetric, TopologyMetric
 from evolution.wrapper import ModelWrapper
 from functools import reduce
+from joblib import parallel_backend
 from models.generator import ModelGenerator
 from models.model import PromoterModel
 from nptyping import NDArray
@@ -226,9 +227,10 @@ class NoveltySearchRunner:
                 nn_arrays = TopologyMetric.serialise(feature_vectors)
 
             nn.fit(nn_arrays)
-            collective_distances, collective_neighbors = (
-                arr[:, 1:] for arr in nn.kneighbors(nn_arrays, return_distance=True)
-            )
+            with parallel_backend("loky"):
+                collective_distances, collective_neighbors = (
+                    arr[:, 1:] for arr in nn.kneighbors(nn_arrays, return_distance=True)
+                )
 
             novelties = [
                 # Scale by two as max(MI)=2, max(Novelty)=1
@@ -242,11 +244,13 @@ class NoveltySearchRunner:
             # Find two nearest neighbors in the archive to possibly replace them
             if novelty_archive:
                 nn.fit(nn_arrays[len(models) :])
-                archive_distances, archive_neighbors = nn.kneighbors(
-                    nn_arrays[: len(models)],
-                    n_neighbors=min(2, len(novelty_archive)),
-                    return_distance=True,
-                )
+                with parallel_backend("loky"):
+                    archive_distances, archive_neighbors = nn.kneighbors(
+                        nn_arrays[: len(models)],
+                        n_neighbors=min(2, len(novelty_archive)),
+                        return_distance=True,
+                    )
+
             else:
                 archive_distances = archive_neighbors = [-1, -1]
 
