@@ -409,7 +409,7 @@ class NoveltySearchRunner:
                 runner_stats[label]["std_novelty"].append(np.average(novelties))
 
                 runner_stats[label]["avg_fitness"].append(np.average(fitnesses))
-                runner_stats[label]["std_fitness"].append(np.std(fitness))
+                runner_stats[label]["std_fitness"].append(np.std(fitnesses))
 
                 runner_stats[label]["avg_mi"].append(np.average(mis))
                 runner_stats[label]["std_mi"].append(np.std(mis))
