@@ -24,22 +24,30 @@ class BenchmarkingExamples(ClassWithData):
         Plot the execution time of matrix exponential calculation
         as the size of models is increased.
         """
-        repeats = 100
+        repeats = 40
 
         times = []
+        num_states = range(2, 11)
 
-        for num_states in range(2, 10):
+        for states in num_states:
             total = 0
             for _ in range(repeats):
-                model = ModelGenerator.get_random_model(num_states)
+                model = ModelGenerator.get_random_model(states)
                 start = time.time()
                 model.get_matrix_exp(self.data, self.time_delta)
                 total += time.time() - start
             avg_time = total / repeats
-            print(f"{num_states} states: {avg_time:.3f}s")
+            print(f"{states} states: {avg_time:.3f}s")
             times.append(avg_time)
 
         print(total)
+
+        import matplotlib.pyplot as plt
+
+        plt.plot(num_states, times)
+        plt.ylabel("Time (s)")
+        plt.xlabel("Number of States")
+        plt.savefig(f"{self.SAVE_FOLDER}/matrix_exponentials.png")
 
     def trajectory_simulation(self):
         """
@@ -124,7 +132,7 @@ class BenchmarkingExamples(ClassWithData):
         """
         model = self.model
 
-        repeats = 10
+        repeats = 5
         replicate_counts = [1, 2, 5, 10, 20, 50]
         classifiers = ["svm", "random_forest", "decision_tree", "naive_bayes"]
         dims = (len(classifiers), len(replicate_counts))
@@ -161,6 +169,7 @@ class BenchmarkingExamples(ClassWithData):
         from concurrent.futures import ThreadPoolExecutor
 
         with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(_benchmark, 0, 0).result(TIMEOUT)
             for i in range(len(classifiers)):
                 for j in range(len(replicate_counts)):
                     try:
@@ -176,6 +185,13 @@ class BenchmarkingExamples(ClassWithData):
 
         print("MI standard deviation:")
         print(res_mi_std)
+
+        for classifier, times, means, stds in zip(
+            classifiers, res_times, res_mi_mean, res_mi_std
+        ):
+            print(classifier)
+            for reps, _time, mean, std in zip(replicate_counts, times, means, stds):
+                print(f"\t{reps} reps: {_time:.4f}s, {mean:.4f} MI, {std:.4f} STD")
 
     def _sklearn_nested_parallelism__pip_evaluate(
         pip: OneStepDecodingPipeline, model: PromoterModel, index: int
