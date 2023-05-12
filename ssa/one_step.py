@@ -64,15 +64,23 @@ class OneStepSimulator(StochasticSimulator):
         _init_chosen = init_cdf.searchsorted(
             np_rs.uniform(size=(self.num_classes, self.batch_size, self.replicates))
         )
-        state = np.zeros(
-            (self.num_classes, self.batch_size, self.replicates, num_model_states)
-        )
+
         init_chosen = np.indices((*_init_chosen.shape, 1))
         init_chosen[-1] = np.expand_dims(_init_chosen, -1)
-        state[tuple(init_chosen)] = 1
         ## dimensions are: # of classes, batch size, # of replicates, # of states
 
-        states = [state]
+        # Additional time for t=0
+        states = np.full(
+            (
+                self.num_times + 1,
+                self.num_classes,
+                self.batch_size,
+                self.replicates,
+                num_model_states,
+            ),
+            False,
+        )
+        states[0][tuple(init_chosen)] = True
 
         ## Sample random numbers in batches
         rand_tensors = np_rs.uniform(
@@ -80,8 +88,8 @@ class OneStepSimulator(StochasticSimulator):
         )
 
         STATE_AXIS = 3
-        for matrix_exp, rand_mats in zip(matrix_exps, rand_tensors):
-            prob_dist = np.einsum("ijkl,ijlm->ijkm", state, matrix_exp)
+        for i, (matrix_exp, rand_mats) in enumerate(zip(matrix_exps, rand_tensors)):
+            prob_dist = np.einsum("ijkl,ijlm->ijkm", states[i], matrix_exp)
 
             if not self.binary_search:
                 # A fully vectorised O(n) approach
@@ -115,9 +123,6 @@ class OneStepSimulator(StochasticSimulator):
                 chosen = np.array(chosen).T
 
             # Update the state
-            state = np.zeros(state.shape)
-            state[tuple(chosen)] = 1
-            states.append(state)
+            states[i + 1][tuple(chosen)] = True
 
-        states = np.array(states)
         return states.reshape((*(states.shape[:2]), -1, states.shape[-1]))
