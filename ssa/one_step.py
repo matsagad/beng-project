@@ -32,7 +32,11 @@ class OneStepSimulator(StochasticSimulator):
         # (shift axes to allow ease in enumeration)
         TIME_AXIS = 2
         matrix_exps = np.moveaxis(
-            model.get_matrix_exp(self.exogenous_data, self.tau), TIME_AXIS, 0
+            model.get_matrix_exp(
+                self.exogenous_data[:, :, :, : self.num_times], self.tau
+            ),
+            TIME_AXIS,
+            0,
         )
         ## dimensions are: # of times, # of classes, batch size, # of states, # of states
 
@@ -82,14 +86,14 @@ class OneStepSimulator(StochasticSimulator):
         )
         states[0][tuple(init_chosen)] = True
 
-        ## Sample random numbers in batches
-        rand_tensors = np_rs.uniform(
-            size=(self.num_times, self.num_classes, self.batch_size, self.replicates)
-        )
-
         STATE_AXIS = 3
-        for i, (matrix_exp, rand_mats) in enumerate(zip(matrix_exps, rand_tensors)):
+        for i, matrix_exp in enumerate(matrix_exps):
             prob_dist = np.einsum("ijkl,ijlm->ijkm", states[i], matrix_exp)
+
+            ## Sample random numbers in batches
+            rand_mats = np_rs.uniform(
+                size=(self.num_classes, self.batch_size, self.replicates)
+            )
 
             if not self.binary_search:
                 # A fully vectorised O(n) approach
