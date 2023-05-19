@@ -235,7 +235,8 @@ class TopologyMetric:
         D_cat = TopologyMetric.d_hamming.pairwise(f_p_cat, f_q_cat)
         D_cont = TopologyMetric.d_euclidean.pairwise(f_p_cont, f_q_cont)
 
-        D = (9 * D_cat + D_cont) / 10
+        p = 0.9
+        D = p * D_cat + (1 - p) * D_cont
 
         P_min = ot.emd([], [], D)
         distance = np.sum(P_min * D)
