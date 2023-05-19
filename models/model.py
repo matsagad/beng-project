@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from models.rates.function import RateFunction
 from nptyping import NDArray, Shape, Float, Int
 from scipy.linalg import expm, norm
@@ -45,7 +45,9 @@ class PromoterModel:
         return self
 
     def get_generator(
-        self, exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float]
+        self,
+        exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float],
+        axes_permutation: Tuple[int, int, int] = (2, 0, 1),
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
         """
         Args:
@@ -53,36 +55,28 @@ class PromoterModel:
                             # of classes, # of TFs, batch size, # of times
 
         Returns:
-            An array of generator matrices with dimensions:
-            # of classes, batch size, # of times, # of states, # of states
+            (By default) an array of generator matrices with dimensions:
+            # of times, # of classes, batch size, # of states, # of states
         """
-        TIME_AXIS = len(exogenous_data.shape) - 1
+        # Set the no. of TFs to be the leading axis and  permute the rest of the axes.
+        relative_permutation = np.array([0, 2, 3])[list(axes_permutation)]
+        tf_iterable_data = np.transpose(exogenous_data, (1, *relative_permutation))
 
-        # swap # of tfs and # of classes axes
-        tf_iterable_data = np.moveaxis(exogenous_data, 1, 0)
-        batched_rate_shape = tf_iterable_data.shape[1:]
-
-        generator = np.stack(
-            [
-                np.stack(
-                    [
-                        np.zeros(batched_rate_shape)
-                        if not rate_fn
-                        else rate_fn.evaluate(tf_iterable_data)
-                        for rate_fn in row
-                    ],
-                    axis=TIME_AXIS,
-                )
-                for row in self.rate_fn_matrix
-            ],
-            axis=TIME_AXIS,
+        generator = np.zeros(
+            (*tf_iterable_data.shape[1:], self.num_states, self.num_states),
+            dtype=np.float32,
         )
-        # generator shape is: # of classes, batch size, # of times, # of states, # of states
+
+        for i, row in enumerate(self.rate_fn_matrix):
+            for j, rate_fn in enumerate(row):
+                if rate_fn:
+                    generator[:, :, :, i, j] = rate_fn.evaluate(tf_iterable_data)
+
+        # Default generator shape is: no. times, no. classes, batch size, no, states, no. states
 
         RATE_MATRIX_ROW_AXIS = len(generator.shape) - 1
         row, col = np.diag_indices_from(generator[0, 0, 0])
         generator[:, :, :, row, col] = -generator.sum(axis=RATE_MATRIX_ROW_AXIS)
-
         return generator
 
     def get_matrix_exp(
@@ -91,6 +85,14 @@ class PromoterModel:
         Q = tau * self.get_generator(exogenous_data)
         scale = 1 << max(0, int((np.log2(norm(Q)))))
         return np.linalg.matrix_power(expm(Q / scale), scale)
+
+    def get_matrix_exp_iterable(
+        self, exogenous_data: NDArray[Shape["Any, Any, Any, Any"], Float], tau: float
+    ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
+        # Lazily evaluate matrix exponentials to save memory.
+        Q = tau * self.get_generator(exogenous_data)
+        scale = 1 << max(0, int((np.log2(norm(Q)))))
+        return (np.linalg.matrix_power(expm(Q_t / scale), scale) for Q_t in Q)
 
     def visualise(
         self,

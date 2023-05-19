@@ -24,20 +24,23 @@ class OneStepSimulator(StochasticSimulator):
         self.replicates = replicates
         self.seed = None
         self.binary_search = False
+        self.states_threshold = 15
 
     def simulate(
         self, model: PromoterModel
     ) -> NDArray[Shape["Any, Any, Any, Any, Any"], Float]:
-        # Pre-calculate matrix exponentials for all time points and batches
-        # (shift axes to allow ease in enumeration)
-        TIME_AXIS = 2
-        matrix_exps = np.moveaxis(
-            model.get_matrix_exp(
+        if model.num_states > self.states_threshold:
+            # If number of states is incredibly large, then lazily evaluate the
+            # matrix exponentials when they are needed to conserve memory.
+            matrix_exps = model.get_matrix_exp_iterable(
                 self.exogenous_data[:, :, :, : self.num_times], self.tau
-            ),
-            TIME_AXIS,
-            0,
-        )
+            )
+        else:
+            # If number of states is tractable, pre-calculate the matrix exponentials
+            # in a vectorised manner to speed up the process.
+            matrix_exps = model.get_matrix_exp(
+                self.exogenous_data[:, :, :, : self.num_times], self.tau
+            )
         ## dimensions are: # of times, # of classes, batch size, # of states, # of states
 
         # Find probability distribution trajectory
