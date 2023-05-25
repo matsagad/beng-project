@@ -48,7 +48,7 @@ class NoveltySearchRunner:
         index: int,
         find_classes: bool = False,
         find_feature_vector: bool = False,
-    ) -> Tuple[int, float, float]:
+    ) -> Tuple[int, float, float, float, NDArray | None, NDArray | None]:
         return (
             index,
             *NoveltySearchRunner.mp_instance._evaluate(
@@ -58,8 +58,10 @@ class NoveltySearchRunner:
 
     def _evaluate(
         self, model: PromoterModel, find_classes: bool, find_feature_vector: bool
-    ) -> Tuple[float, float, NDArray | None]:
-        mi = self.pip.evaluate(model, verbose=False)
+    ) -> Tuple[float, float, float, NDArray | None, NDArray | None]:
+        trajectory = self.pip.simulator.simulate(model)
+        mi, std_mi = self.pip.estimator.estimate(model, trajectory, return_std=True)
+
         classes, feature_vector = None, None
         if find_classes:
             dist_traj = self.prob_pip.simulator.simulate(model)
@@ -68,7 +70,7 @@ class NoveltySearchRunner:
             )
         if find_feature_vector:
             feature_vector = TopologyMetric.get_feature_vector(model)
-        return self.scale_fitness(model, mi), mi, classes, feature_vector
+        return self.scale_fitness(model, mi), mi, std_mi, classes, feature_vector
 
     def run(
         self,
@@ -129,9 +131,17 @@ class NoveltySearchRunner:
                 "std_fitness": [],
                 "avg_mi": [],
                 "std_mi": [],
+                "avg_std_mi": [],
                 "avg_num_states": [],
             }
-        best_stats = {"novelty": 0, "fitness": 0, "mi": 0, "num_states": 0, "hash": ""}
+        best_stats = {
+            "novelty": 0,
+            "fitness": 0,
+            "mi": 0,
+            "std_mi": 0,
+            "num_states": 0,
+            "hash": "",
+        }
 
         num_digits = len(str(iterations))
 
@@ -189,6 +199,7 @@ class NoveltySearchRunner:
                         i,
                         curr_fitness,
                         curr_mi,
+                        curr_std_mi,
                         curr_classes,
                         curr_feature_vector,
                     ) = future.result()
@@ -209,6 +220,7 @@ class NoveltySearchRunner:
                         runs_per_model - runs_left + 1
                     )
                     wrapper.fitness, wrapper.mi = fitness, mi
+                    wrapper.std_mi = max(wrapper.std_mi, curr_std_mi)
                     heapq.heappush(top_models, wrapper)
 
             # Find novelties and local competition between models
@@ -362,6 +374,7 @@ class NoveltySearchRunner:
                 "novelty": curr_best_model_wrapper.novelty,
                 "fitness": curr_best_model_wrapper.fitness,
                 "mi": curr_best_model_wrapper.mi,
+                "std_mi": curr_best_model_wrapper.std_mi,
                 "num_states": curr_best_model_wrapper.model.num_states,
                 "hash": curr_best_model_wrapper.model.hash(short=True),
             }
@@ -373,7 +386,7 @@ class NoveltySearchRunner:
                 print(
                     f"({str(iter + 1).zfill(num_digits)}/{iterations}):\t\033[1m "
                     + "\t ".join(
-                        f"{label}: {stats['novelty']:.3f} {stats['fitness']:.3f} ({stats['mi']:.3f}, {stats['num_states']}, {stats['hash']})"
+                        f"{label}: {stats['novelty']:.3f} {stats['fitness']:.3f} ({stats['mi']:.3f}±{stats['std_mi']:.3f}, {stats['num_states']}, {stats['hash']})"
                         for label, stats in zip(
                             ("Best", "Current"), (best_stats, curr_stats)
                         )
@@ -386,7 +399,7 @@ class NoveltySearchRunner:
                     "\tPareto-based Elites: "
                     + ", ".join(
                         [
-                            f"({wrapper.fitness:.3f}, {wrapper.mi:.3f}, {wrapper.model.num_states}, {wrapper.model.hash(short=True)})"
+                            f"({wrapper.novelty:.3f}, {wrapper.fitness:.3f}, {wrapper.model.num_states}, {wrapper.model.hash(short=True)})"
                             for wrapper in elite
                         ]
                     )
@@ -404,6 +417,9 @@ class NoveltySearchRunner:
                 novelties = [wrapper.novelty for wrapper in wrappers]
                 fitnesses = [wrapper.fitness for wrapper in wrappers]
                 mis = [wrapper.mi for wrapper in wrappers]
+                std_mis = [
+                    wrapper.std_mi for wrapper in wrappers if wrapper.std_mi >= 0
+                ]
 
                 runner_stats[label]["avg_novelty"].append(np.average(novelties))
                 runner_stats[label]["std_novelty"].append(np.average(novelties))
@@ -413,6 +429,7 @@ class NoveltySearchRunner:
 
                 runner_stats[label]["avg_mi"].append(np.average(mis))
                 runner_stats[label]["std_mi"].append(np.std(mis))
+                runner_stats[label]["avg_std_mi"].append(np.average(std_mis))
 
                 runner_stats[label]["avg_num_states"].append(
                     np.average([wrapper.model.num_states for wrapper in wrappers])
@@ -420,13 +437,14 @@ class NoveltySearchRunner:
             runner_stats["avg_time_duration"].append(time.time() - start)
 
             if debug:
-                avg_novelty, avg_fitness, avg_mi, std_mi, avg_num_states = [
+                avg_novelty, avg_fitness, avg_mi, std_mi, avg_std_mi, avg_num_states = [
                     runner_stats["population"][stat][-1]
                     for stat in (
                         "avg_novelty",
                         "avg_fitness",
                         "avg_mi",
                         "std_mi",
+                        "avg_std_mi",
                         "avg_num_states",
                     )
                 ]
@@ -436,7 +454,8 @@ class NoveltySearchRunner:
                 print(f"\tMean Population Novelty: {avg_novelty:.3f}")
                 print(f"\tMean Population Fitness: {avg_fitness:.3f}")
                 print(f"\tMean Population MI: {avg_mi:.3f}")
-                print(f"\tStandard Deviation MI: {std_mi:.3f}")
+                print(f"\tPopulation Standard Deviation of MI: {std_mi:.3f}")
+                print(f"\tMean MI Standard Deviation: {avg_std_mi:.3f}")
                 print(f"\tAvg Number of States: {avg_num_states:.3f}")
                 print(f"\tIteration Duration: {time_duration:.3f}s")
 

@@ -36,12 +36,13 @@ class GeneticRunner:
         self.sorted_models = []
         self.runner_stats = {"avg_time_duration": []}
 
-    def evaluate_wrapper(model: PromoterModel, index: int) -> Tuple[int, float, float]:
+    def evaluate_wrapper(model: PromoterModel, index: int) -> Tuple[int, float, float, float]:
         return (index, *GeneticRunner.mp_instance._evaluate(model))
 
-    def _evaluate(self, model: PromoterModel) -> Tuple[float, float]:
-        mi = self.pip.evaluate(model, verbose=False)
-        return self.scale_fitness(model, mi), mi
+    def _evaluate(self, model: PromoterModel) -> Tuple[float, float, float]:
+        trajectory = self.pip.simulator.simulate(model)
+        mi, std_mi = self.pip.estimator.estimate(model, trajectory, return_std=True)
+        return self.scale_fitness(model, mi), mi, std_mi
 
     def run(
         self,
@@ -93,6 +94,7 @@ class GeneticRunner:
                 "std_fitness": [],
                 "avg_mi": [],
                 "std_mi": [],
+                "avg_std_mi": [],
                 "avg_num_states": [],
             }
         best_stats = {"fitness": 0, "mi": 0, "num_states": 0, "hash": ""}
@@ -123,7 +125,7 @@ class GeneticRunner:
                         heapq.heappush(top_models, (wrapper, i))
 
                 for future in as_completed(futures):
-                    i, curr_fitness, curr_mi = future.result()
+                    i, curr_fitness, curr_mi, curr_std_mi = future.result()
 
                     wrapper = models[i]
                     avg_fitness, avg_mi = wrapper.fitness, wrapper.mi
@@ -137,6 +139,7 @@ class GeneticRunner:
                         runs_per_model - runs_left + 1
                     )
                     wrapper.fitness, wrapper.mi = fitness, mi
+                    wrapper.std_mi = max(wrapper.std_mi, curr_std_mi)
 
                     heapq.heappush(top_models, (wrapper, i))
 
@@ -144,6 +147,7 @@ class GeneticRunner:
             curr_stats = {
                 "fitness": curr_best_model_wrapper.fitness,
                 "mi": curr_best_model_wrapper.mi,
+                "std_mi": curr_best_model_wrapper.std_mi,
                 "num_states": curr_best_model_wrapper.model.num_states,
                 "hash": curr_best_model_wrapper.model.hash(short=True),
             }
@@ -164,7 +168,7 @@ class GeneticRunner:
                 )
 
             # Get sorted list of models
-            sorted_tuples = heapq.nsmallest(len(top_models), top_models)
+            sorted_tuples = [heapq.heappop(top_models) for _ in range(len(top_models))]
             self.sorted_models = sorted_models = [
                 wrapper for wrapper, _ in sorted_tuples
             ]
@@ -194,26 +198,37 @@ class GeneticRunner:
             ):
                 fitnesses = [wrapper.fitness for wrapper in wrappers]
                 mis = [wrapper.mi for wrapper in wrappers]
+                std_mis = [
+                    wrapper.std_mi for wrapper in wrappers if wrapper.std_mi >= 0
+                ]
 
                 runner_stats[label]["avg_fitness"].append(np.average(fitnesses))
                 runner_stats[label]["std_fitness"].append(np.std(fitness))
                 runner_stats[label]["avg_mi"].append(np.average(mis))
                 runner_stats[label]["std_mi"].append(np.std(mis))
+                runner_stats[label]["avg_std_mi"].append(np.average(std_mis))
                 runner_stats[label]["avg_num_states"].append(
                     np.average([wrapper.model.num_states for wrapper in wrappers])
                 )
             runner_stats["avg_time_duration"].append(time.time() - start)
 
             if debug:
-                avg_fitness, avg_mi, std_mi, avg_num_states = [
+                avg_fitness, avg_mi, std_mi, avg_std_mi, avg_num_states = [
                     runner_stats["population"][stat][-1]
-                    for stat in ("avg_fitness", "avg_mi", "std_mi", "avg_num_states")
+                    for stat in (
+                        "avg_fitness",
+                        "avg_mi",
+                        "std_mi",
+                        "avg_std_mi",
+                        "avg_num_states",
+                    )
                 ]
                 time_duration = runner_stats["avg_time_duration"][-1]
 
                 print(f"\tMean Population Fitness: {avg_fitness:.3f}")
                 print(f"\tMean Population MI: {avg_mi:.3f}")
-                print(f"\tStandard Deviation MI: {std_mi:.3f}")
+                print(f"\tPopulation Standard Deviation of MI: {std_mi:.3f}")
+                print(f"\tMean MI Standard Deviation: {avg_std_mi:.3f}")
                 print(f"\tAvg Number of States: {avg_num_states:.3f}")
                 print(f"\tIteration Duration: {time_duration:.3f}s")
 

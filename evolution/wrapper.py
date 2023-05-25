@@ -10,6 +10,7 @@ class ModelWrapper:
         model: PromoterModel,
         fitness: float = 0,
         mi: float = 0,
+        std_mi: float = 0,
         runs_left: int = 3,
         novelty: float = 0,
         classes: NDArray = None,
@@ -19,6 +20,7 @@ class ModelWrapper:
         self.model = model
         self.fitness = fitness
         self.mi = mi
+        self.std_mi = std_mi
         self.runs_left = runs_left
         self.novelty = novelty
         self.classes = classes

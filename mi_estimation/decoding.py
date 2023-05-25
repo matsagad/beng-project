@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV, train_test_split
 from sklearn.neural_network import MLPClassifier
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 import numpy as np
 import os
 import warnings
@@ -183,7 +183,8 @@ class DecodingEstimator(MIEstimator):
         halving: bool = True,
         add_noise: bool = False,
         smoothen: bool = False,
-    ) -> float:
+        return_std: bool = False,
+    ) -> float | Tuple[float, float]:
         """
         The MI estimation process is adapted from the method of Granados, Pietsch, et al,
         Proc Nat Acad Sci USA 115 (2008) 6088. It has been modified to suit the setting of
@@ -228,7 +229,7 @@ class DecodingEstimator(MIEstimator):
             np.var(MinMaxScaler((-1, 1)).fit_transform(X_val), axis=0)
             < self.variance_threshold
         ):
-            return 0.0
+            return 0.0, -1.0
 
         # Tune pipeline hyperparameters
         num_samples = len(y_val)
@@ -304,15 +305,20 @@ class DecodingEstimator(MIEstimator):
         # Summary statistics - median and confidence intervals
         ci_low, ci_high = c_interval
         sorted_mi = np.sort(mi)
+        inter_quartile = sorted_mi[
+            int(ci_low * n_bootstraps) : int(ci_high * n_bootstraps)
+        ]
 
-        mean_mi = np.mean(
-            sorted_mi[int(ci_low * n_bootstraps) : int(ci_high * n_bootstraps)]
-        )
+        mean_mi = np.mean(inter_quartile)
+        std_mi = np.std(inter_quartile)
 
         if verbose:
             ci_low_value = sorted_mi[int(ci_low * n_bootstraps)]
             ci_high_value = sorted_mi[int(ci_high * n_bootstraps)]
             print(f"median MI= {mean_mi:.2f} [{ci_low_value:.2f}, {ci_high_value:.2f}]")
+
+        if return_std:
+            return mean_mi, std_mi
 
         return mean_mi
 
@@ -324,7 +330,8 @@ class DecodingEstimator(MIEstimator):
         halving: bool = True,
         add_noise: bool = False,
         smoothen: bool = False,
-    ) -> float:
+        return_std: bool = False,
+    ) -> float | Tuple[float, float]:
         data = self._split_classes(model, trajectory)
         return self._estimate(
             data,
@@ -332,4 +339,5 @@ class DecodingEstimator(MIEstimator):
             halving=halving,
             add_noise=add_noise,
             smoothen=smoothen,
+            return_std=return_std,
         )
