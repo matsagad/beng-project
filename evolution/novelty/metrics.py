@@ -99,6 +99,9 @@ class TrajectoryMetric:
 
 class TopologyMetric:
     PAD_ENTRY = -1
+    MIN_LOG_WEIGHT = -2
+    MAX_LOG_WEIGHT = 2
+
     d_hamming = DistanceMetric.get_metric("hamming")
     d_euclidean = DistanceMetric.get_metric("euclidean")
 
@@ -145,7 +148,11 @@ class TopologyMetric:
             for rate_fn in row
             if rate_fn is not None
         ]
-        return line_labels, np.log10(line_weights), line_matrix
+        return (
+            line_labels,
+            np.log10(line_weights) - TopologyMetric.MIN_LOG_WEIGHT,
+            line_matrix,
+        )
 
     def _hash(object: any) -> int:
         """
@@ -222,7 +229,7 @@ class TopologyMetric:
 
         return TopologyMetric.wwl_metric_for_wl_feature_vectors(f_model, f_other)
 
-    def wwl_metric_for_wl_feature_vectors(f_p: NDArray, f_q: NDArray) -> float:
+    def wwl_metric_for_wl_feature_vectors(f_p: NDArray, f_q: NDArray, p_cat=0.5) -> float:
         """
         A metric to act on pre-computed Weisfeiler-Lehman feature vectors.
         """
@@ -233,10 +240,11 @@ class TopologyMetric:
         f_q_cat, f_q_cont = f_q[:q_size], f_q[q_size:]
 
         D_cat = TopologyMetric.d_hamming.pairwise(f_p_cat, f_q_cat)
-        D_cont = TopologyMetric.d_euclidean.pairwise(f_p_cont, f_q_cont)
+        D_cont = TopologyMetric.d_euclidean.pairwise(f_p_cont, f_q_cont) / (
+            TopologyMetric.MAX_LOG_WEIGHT - TopologyMetric.MIN_LOG_WEIGHT
+        )
 
-        p = 0.9
-        D = p * D_cat + (1 - p) * D_cont
+        D = p_cat * D_cat + (1 - p_cat) * D_cont
 
         P_min = ot.emd([], [], D)
         distance = np.sum(P_min * D)
@@ -258,11 +266,16 @@ class TopologyMetric:
     def serialise(feature_vectors: List[NDArray]) -> NDArray:
         f_lens = [len(f) for f in feature_vectors]
         dim = max(f_lens)
-        # Use -1 as hash implementation is stricly positive
         nn_arrays = np.zeros((len(feature_vectors), dim)) + TopologyMetric.PAD_ENTRY
-        nn_arrays[np.arange(dim) < np.array(f_lens)[:, None]] = np.concatenate(
-            feature_vectors
-        )
+
+        nn_arrays[
+            (np.arange(dim) < np.array(f_lens)[:, None] // 2)
+            | (
+                (dim // 2 <= np.arange(dim))
+                & (np.arange(dim) < np.array(f_lens)[:, None] // 2 + dim // 2)
+            )
+        ] = np.concatenate(feature_vectors)
+
         return nn_arrays
 
     def deserialise(feature_vector: NDArray, h_iterations: int = 3) -> NDArray:
