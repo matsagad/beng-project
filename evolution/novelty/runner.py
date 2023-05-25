@@ -5,6 +5,7 @@ from functools import reduce
 from joblib import parallel_backend
 from models.generator import ModelGenerator
 from models.model import PromoterModel
+from nn.nearest_neighbor import BruteNearestNeighbors
 from nptyping import NDArray
 from pipeline.one_step_decoding import OneStepDecodingPipeline
 from sklearn.neighbors import NearestNeighbors
@@ -149,17 +150,22 @@ class NoveltySearchRunner:
             # Use Jensen-Shannon divergence on trajectories
             metric = TrajectoryMetric.rms_js_metric_for_trajectories
             epsilon = 0.01
+
+            nn = NearestNeighbors(
+                n_neighbors=n_neighbors + 1,  # excluding self
+                algorithm="ball_tree",
+                metric=metric,
+                n_jobs=-1,
+            )
         else:
             # Use Wasserstein Weisfeiler-Lehman distance on line digraph
-            metric = TopologyMetric.wwl_metric_for_serialised_wl_feature_vectors
+            metric = TopologyMetric.wwl_metric_for_wl_feature_vectors
             epsilon = 0.05
 
-        nn = NearestNeighbors(
-            n_neighbors=n_neighbors + 1,  # excluding self
-            algorithm="ball_tree",
-            metric=metric,
-            n_jobs=-1,
-        )
+            nn = BruteNearestNeighbors(
+                n_neighbors=n_neighbors + 1, metric=metric, n_jobs=n_processors
+            )
+
         novelty_archive = []
         num_iterations_without_archive = 0
 
@@ -233,16 +239,19 @@ class NoveltySearchRunner:
                     ]
                 )
             else:
-                feature_vectors = [
-                    wrapper.as_nn_array(linear=linear_metric) for wrapper in collective
-                ]
-                nn_arrays = TopologyMetric.serialise(feature_vectors)
+                nn_arrays = [wrapper.feature_vector for wrapper in collective]
 
             nn.fit(nn_arrays)
             with parallel_backend("loky"):
+                if not linear_metric:
+                    nn.equal_query = True
+                    nn.cache_results = True
                 collective_distances, collective_neighbors = (
                     arr[:, 1:] for arr in nn.kneighbors(nn_arrays, return_distance=True)
                 )
+                if not linear_metric:
+                    nn.equal_query = False
+                    nn.cache_results = False
 
             novelties = [
                 # Scale by two as max(MI)=2, max(Novelty)=1
@@ -255,14 +264,25 @@ class NoveltySearchRunner:
 
             # Find two nearest neighbors in the archive to possibly replace them
             if novelty_archive:
-                nn.fit(nn_arrays[len(models) :])
-                with parallel_backend("loky"):
-                    archive_distances, archive_neighbors = nn.kneighbors(
-                        nn_arrays[: len(models)],
-                        n_neighbors=min(2, len(novelty_archive)),
-                        return_distance=True,
-                    )
-
+                n_archive_neighbors = min(2, len(novelty_archive))
+                if linear_metric:
+                    nn.fit(nn_arrays[len(models) :])
+                    with parallel_backend("loky"):
+                        archive_distances, archive_neighbors = nn.kneighbors(
+                            nn_arrays[: len(models)],
+                            n_neighbors=n_archive_neighbors,
+                            return_distance=True,
+                        )
+                else:
+                    # Leverage results from previous brute force calculation
+                    d_model_to_archive = nn.d[: len(models), len(models) :]
+                    archive_neighbors = np.argsort(d_model_to_archive)[
+                        :, :n_archive_neighbors
+                    ]
+                    archive_distances = d_model_to_archive[
+                        np.arange(len(models))[:, None], archive_neighbors
+                    ]
+                    del nn.d
             else:
                 archive_distances = archive_neighbors = [-1, -1]
 
