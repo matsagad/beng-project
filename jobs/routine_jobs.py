@@ -37,6 +37,7 @@ class GeneticAlgorithmJob(Job):
             # Constraints
             "reversible": "True",
             "one_active_state": "True",
+            "discrete_active_states": "True",
             "tfs": "maf1,mig1,dot6,tod6,sfp1",
             # I/O and hardware
             "n_processors": 1,
@@ -77,9 +78,10 @@ class GeneticAlgorithmJob(Job):
           selection__tournament_size Number of models sampled if tournament selection operator is chosen
 
           # Constraints
-          reversible        Flag for if reactions should be reversible (True)
-          one_active_state  Flag for if models should have only one active state (True)
-          tfs               List of transcription factors to consider
+          reversible                Flag for if reactions should be reversible (True)
+          one_active_state          Flag for if models should have only one active state (True)
+          discrete_active_states    Flag for if models should have discrete active states (True)
+          tfs                       List of transcription factors to consider
 
           # I/O and hardware
           n_processors          Number of processors to parallelise model evaluation
@@ -113,15 +115,23 @@ class GeneticAlgorithmJob(Job):
             MutationOperator.add_edge,
             MutationOperator.flip_tf,
             MutationOperator.add_noise,
-            MutationOperator.remove_vertex,
-            MutationOperator.add_vertex,
         ]
 
         if _args["one_active_state"] == "False":
             mutations.append(MutationOperator.flip_activity)
-            mutations.append(MutationOperator.add_activity_noise)
+            if _args["discrete_active_states"] == "False":
+                mutations.append(MutationOperator.add_activity_noise)
 
         if _args["fixed_states"] == "False":
+            mutations.append(MutationOperator.remove_vertex)
+            mutations.append(
+                lambda model: MutationOperator.add_vertex(
+                    model,
+                    one_active_state=_args["one_active_state"] == "True",
+                    discrete_active_states=_args["discrete_active_states"] == "True",
+                )
+            )
+
             crossover = CrossoverOperator.subgraph_swap
             penalty_coeff = float(_args["penalty__coeff"])
             if _args["penalty__active"] == "False":
@@ -168,6 +178,7 @@ class GeneticAlgorithmJob(Job):
         mg_params = {
             "reversible": _args["reversible"] == "True",
             "one_active_state": _args["one_active_state"] == "True",
+            "discrete_active_states": _args["discrete_active_states"] == "True",
             "p_edge": float(_args["p_edge"]),
             "num_tfs": len(self.indices),
         }
@@ -327,6 +338,7 @@ class NoveltySearchJob(Job):
             # Constraints
             "reversible": "True",
             "one_active_state": "True",
+            "discrete_active_states": "True",
             "tfs": "maf1,mig1,dot6,tod6,sfp1",
             # I/O and hardware
             "n_processors": 1,
@@ -375,9 +387,10 @@ class NoveltySearchJob(Job):
           selection__tournament_size Number of models sampled if tournament selection operator is chosen
 
           # Constraints
-          reversible        Flag for if reactions should be reversible (True)
-          one_active_state  Flag for if models should have only one active state (True)
-          tfs               List of transcription factors to consider
+          reversible                Flag for if reactions should be reversible (True)
+          one_active_state          Flag for if models should have only one active state (True)
+          discrete_active_states    Flag for if models should have discrete active states (True)
+          tfs                       List of transcription factors to consider
 
           # I/O and hardware
           n_processors          Number of processors to parallelise model evaluation
@@ -411,15 +424,23 @@ class NoveltySearchJob(Job):
             MutationOperator.add_edge,
             MutationOperator.flip_tf,
             MutationOperator.add_noise,
-            MutationOperator.remove_vertex,
-            MutationOperator.add_vertex,
         ]
 
         if _args["one_active_state"] == "False":
             mutations.append(MutationOperator.flip_activity)
-            mutations.append(MutationOperator.add_activity_noise)
+            if _args["discrete_active_states"] == "False":
+                mutations.append(MutationOperator.add_activity_noise)
 
         if _args["fixed_states"] == "False":
+            mutations.append(MutationOperator.remove_vertex)
+            mutations.append(
+                lambda model: MutationOperator.add_vertex(
+                    model,
+                    one_active_state=_args["one_active_state"] == "True",
+                    discrete_active_states=_args["discrete_active_states"] == "True",
+                )
+            )
+            
             crossover = CrossoverOperator.subgraph_swap
             penalty_coeff = float(_args["penalty__coeff"])
             if _args["penalty__active"] == "False":
@@ -466,6 +487,7 @@ class NoveltySearchJob(Job):
         mg_params = {
             "reversible": _args["reversible"] == "True",
             "one_active_state": _args["one_active_state"] == "True",
+            "discrete_active_states": _args["discrete_active_states"] == "True",
             "p_edge": float(_args["p_edge"]),
             "num_tfs": len(self.indices),
         }

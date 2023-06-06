@@ -143,7 +143,11 @@ class MutationOperator:
         return model
 
     def add_vertex(
-        model: PromoterModel, p: float = 0.1, p_edge: float = 0.25
+        model: PromoterModel,
+        p: float = 0.1,
+        p_edge: float = 0.25,
+        one_active_state: bool = True,
+        discrete_active_states: bool = True,
     ) -> PromoterModel:
         if not bool(np.random.binomial(1, p)):
             return model
@@ -173,7 +177,14 @@ class MutationOperator:
             ]
             + [None]
         )
-        model.activity_weights = np.append(model.activity_weights, np.random.uniform())
+        new_weight = (
+            0
+            if one_active_state
+            else np.random.binomial(1, 0.5)
+            if discrete_active_states
+            else np.random.uniform()
+        )
+        model.activity_weights = np.append(model.activity_weights, new_weight)
 
         # Update model stats
         model.num_states += 1

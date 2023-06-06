@@ -66,6 +66,8 @@ class ModelGenerator:
         p_edge: float = 0.5,
         reversible: bool = True,
         one_active_state: bool = True,
+        discrete_active_states: bool = True,
+        p_active: float = 0.33,
         num_tfs: int = 5,
     ) -> PromoterModel:
         # Find a random unfirom spanning tree
@@ -105,6 +107,9 @@ class ModelGenerator:
         # Must only have one active state
         if one_active_state:
             active_weights = np.zeros(states)
+            active_weights[0] = 1
+        elif discrete_active_states:
+            active_weights = np.random.binomial(1, p_active, states)
             active_weights[0] = 1
         else:
             active_weights = np.random.uniform(0, 1, states)
