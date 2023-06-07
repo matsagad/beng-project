@@ -122,7 +122,7 @@ class NoveltySearchRunner:
         num_children = population - num_elites
 
         # Statistics for running the genetic algorithm
-        labels = ("elite", "non_elite", "population")
+        labels = ("elite", "non_elite", "population", "archive")
         self.runner_stats = runner_stats = {"avg_time_duration": [], "archive_size": []}
         for label in labels:
             runner_stats[label] = {
@@ -432,6 +432,7 @@ class NoveltySearchRunner:
                     elite,
                     non_elite,
                     models,
+                    novelty_archive,
                 ),
             ):
                 novelties = [wrapper.novelty for wrapper in wrappers]
