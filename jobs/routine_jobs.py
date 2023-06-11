@@ -341,6 +341,7 @@ class NoveltySearchJob(Job):
             "one_active_state": "True",
             "discrete_active_states": "True",
             "tfs": "maf1,mig1,dot6,tod6,sfp1",
+            "max_states": 10,
             # I/O and hardware
             "n_processors": 1,
             "cache_folder": "cache",
@@ -392,7 +393,8 @@ class NoveltySearchJob(Job):
           one_active_state          Flag for if models should have only one active state (True)
           discrete_active_states    Flag for if models should have discrete active states (True)
           tfs                       List of transcription factors to consider
-
+          max_states                Maximum number of states (10)
+          
           # I/O and hardware
           n_processors          Number of processors to parallelise model evaluation
           cache_folder          Path to cache folder where data may be cached
@@ -504,6 +506,7 @@ class NoveltySearchJob(Job):
             archival_stagnation_threshold=int(_args["archival_stagnation_threshold"]),
             max_archival_rate=int(_args["max_archival_rate"]),
             n_neighbors=int(_args["n_neighbors"]),
+            max_states=int(_args["max_states"]),
             n_processors=int(_args["n_processors"]),
             model_generator_params=mg_params,
             initial_population=initial_population,

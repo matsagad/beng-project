@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from evolution.genetic.operators.mutation import MutationOperator
 from evolution.novelty.metrics import TrajectoryMetric, TopologyMetric
 from evolution.wrapper import ModelWrapper
 from functools import reduce
@@ -85,6 +86,7 @@ class NoveltySearchRunner:
         archival_stagnation_threshold: int = 3,
         max_archival_rate: int = -1,
         n_neighbors: int = 15,
+        max_states: int = 10,
         n_processors: int = 10,
         runs_per_model: int = 3,
         model_generator_params: Dict[str, any] = dict(),
@@ -507,6 +509,14 @@ class NoveltySearchRunner:
                         parent1 in elite_indices,
                         parent2 in elite_indices,
                     )
+                )
+
+            for wrapper in children:
+                if wrapper.model.num_states <= max_states:
+                    continue
+                # Reduce model's number of states into half of maximum allowed
+                wrapper.model = MutationOperator.reduce_to_subgraph(
+                    wrapper.model, max_states=max_states // 2
                 )
 
             models = elite + children

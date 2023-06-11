@@ -241,3 +241,36 @@ class MutationOperator:
         model.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
 
         return model
+
+    def reduce_to_subgraph(model: PromoterModel, max_states: int) -> PromoterModel:
+        vertices = set()
+        stack = [0]
+
+        while stack:
+            vertex = stack.pop()
+            if vertex not in vertices:
+                vertices.add(vertex)
+                max_states -= 1
+
+            if max_states <= 0:
+                break
+
+            for i, rate_fn in enumerate(model.rate_fn_matrix[vertex]):
+                if rate_fn is None or i in vertices:
+                    continue
+                stack.append(i)
+
+        indices = sorted(vertices)
+        rate_fn_matrix = []
+        for row_index in indices:
+            row = model.rate_fn_matrix[row_index]
+            rate_fn_matrix.append([row[col_index] for col_index in indices])
+        model.rate_fn_matrix = rate_fn_matrix
+        model.activity_weights = model.activity_weights[indices]
+
+        # Update model stats
+        model.num_states = len(model.rate_fn_matrix)
+        model.num_edges = sum(sum(map(bool, row)) for row in rate_fn_matrix)
+        model.init_state = np.ones(len(rate_fn_matrix), dtype=int) / len(rate_fn_matrix)
+
+        return model
