@@ -219,7 +219,8 @@ class GeneticAlgorithmJob(Job):
 
         print("Interrupted. Caching currently found results.")
 
-        models, stats = self.runner.sorted_models, self.runner.runner_stats
+        models = [wrapper.as_tuple() for wrapper in self.runner.sorted_models]
+        stats = self.runner.runner_stats
 
         for *_, model in models:
             if hasattr(model, "modified") and model.modified:
@@ -440,7 +441,7 @@ class NoveltySearchJob(Job):
                     discrete_active_states=_args["discrete_active_states"] == "True",
                 )
             )
-            
+
             crossover = CrossoverOperator.subgraph_swap
             penalty_coeff = float(_args["penalty__coeff"])
             if _args["penalty__active"] == "False":
