@@ -471,9 +471,12 @@ class NoveltySearchRunner:
                         "avg_num_states",
                     )
                 ]
+                avg_archive_fitness = runner_stats["archive"]["avg_fitness"][-1]
+
                 time_duration = runner_stats["avg_time_duration"][-1]
                 print(f"\tNovelty Archive Size: {len(novelty_archive)}")
                 print(f"\tArchival Threshold: {novelty_threshold:.3f}")
+                print(f"\tMean Archive Fitness: {avg_archive_fitness:.3f}")
                 print(f"\tMean Population Novelty: {avg_novelty:.3f}")
                 print(f"\tMean Population Fitness: {avg_fitness:.3f}")
                 print(f"\tMean Population MI: {avg_mi:.3f}")
