@@ -150,7 +150,7 @@ class NoveltySearchRunner:
 
         if linear_metric:
             # Use Jensen-Shannon divergence on trajectories
-            metric = TrajectoryMetric.rms_js_metric_for_trajectories
+            metric = TrajectoryMetric.mean_js_metric_for_trajectories
             epsilon = 0.01
 
             nn = NearestNeighbors(

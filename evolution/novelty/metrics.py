@@ -31,26 +31,11 @@ class TrajectoryMetric:
     def rms_js_metric_for_trajectories(p_traj: NDArray, q_traj: NDArray) -> float:
         """
         Root mean square Jensen-Shannon distance metric
-
-        Trajectory values represent activity within the promoter region. This is a weighted
-        sum of the probabilities of being in each state. An interpretation of this value
-        is the probability of being active at that point in time.
-
-        Treating this as a time series of probability distributions, we can compare
-        point-wise the probability distributions using the JS divergence to get an
-        estimate of how distinct two trajectories are (i.e. how reliably one can
-        distinguish between the two, in units of bits).
-
-        Given two vectors of trajectory values x and y, this function outputs
-        the root mean square of d_JS(x_i, y_i) where d_JS is the Jensen-Shannon
-        distance metric (square root of JS divergence).
         """
         return np.sqrt(
-            min(
+            (
                 TrajectoryMetric.js_divergence(p_traj, q_traj)
-                + TrajectoryMetric.js_divergence(1 - p_traj, 1 - q_traj),
-                TrajectoryMetric.js_divergence(p_traj, 1 - q_traj)
-                + TrajectoryMetric.js_divergence(1 - p_traj, q_traj),
+                + TrajectoryMetric.js_divergence(1 - p_traj, 1 - q_traj)
             )
             / p_traj.size
         )
@@ -79,22 +64,29 @@ class TrajectoryMetric:
         ) / 2
 
     def mean_js_metric_for_trajectories(p_traj: NDArray, q_traj: NDArray) -> float:
-        return np.log2(
-            1
-            + (
-                np.sum(
-                    (
-                        np.sqrt(
-                            (
-                                TrajectoryMetric.js_divergence(p_traj, q_traj)
-                                + TrajectoryMetric.js_divergence(1 - p_traj, 1 - q_traj)
-                            )
-                        )
-                    )
-                )
-            )
-            / p_traj.size
-        )
+        """
+        Mean Jensen-Shannon distance metric
+
+        Trajectory values represent activity within the promoter region. This is a weighted
+        sum of the probabilities of being in each state. An interpretation of this value
+        is the probability of being active at that point in time.
+
+        Treating this as a time series of probability distributions, we can compare
+        point-wise the probability distributions using the JS divergence to get an
+        estimate of how distinct two trajectories are (i.e. how reliably one can
+        distinguish between the two, in units of bits).
+
+        Given two vectors of trajectory values x and y, this function outputs
+        the mean of d_JS(x_i, y_i) where d_JS is the Jensen-Shannon
+        distance metric (square root of JS divergence).
+        """
+        d_js = TrajectoryMetric.v_js_divergence(
+            p_traj, q_traj
+        ) + TrajectoryMetric.v_js_divergence(1 - p_traj, 1 - q_traj)
+
+        # When trajectories are very similar, the lack of precision can overflow into
+        # the negatives, e.g. -1e-16. To account for this, we assume they are zero.
+        return np.sum(np.sqrt(d_js[d_js > 0])) / p_traj.size
 
 
 class TopologyMetric:
@@ -229,7 +221,9 @@ class TopologyMetric:
 
         return TopologyMetric.wwl_metric_for_wl_feature_vectors(f_model, f_other)
 
-    def wwl_metric_for_wl_feature_vectors(f_p: NDArray, f_q: NDArray, p_cat=0.5) -> float:
+    def wwl_metric_for_wl_feature_vectors(
+        f_p: NDArray, f_q: NDArray, p_cat=0.5
+    ) -> float:
         """
         A metric to act on pre-computed Weisfeiler-Lehman feature vectors.
         """
