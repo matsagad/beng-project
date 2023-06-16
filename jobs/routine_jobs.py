@@ -118,9 +118,11 @@ class GeneticAlgorithmJob(Job):
         ]
 
         if _args["one_active_state"] == "False":
-            mutations.append(MutationOperator.flip_activity)
             if _args["discrete_active_states"] == "False":
+                mutations.append(MutationOperator.flip_activity)
                 mutations.append(MutationOperator.add_activity_noise)
+            else:
+                mutations.append(MutationOperator.flip_activity_discrete)
 
         if _args["fixed_states"] == "False":
             mutations.append(MutationOperator.remove_vertex)

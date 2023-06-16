@@ -100,6 +100,17 @@ class MutationOperator:
 
         return model
 
+    def flip_activity_discrete(model: PromoterModel, p: float = 0.2) -> PromoterModel:
+        # Randomly flip activity of node by some probability (except the first state)
+        # If flipped from inactive to active, then initialise with random uniform weight.
+        to_flip = np.random.binomial(1, p, model.num_states - 1).astype(bool)
+        active = model.activity_weights[1:] > 0
+
+        model.activity_weights[1:][to_flip & active] = 0
+        model.activity_weights[1:][to_flip & ~active] = 1
+
+        return model
+
     def _modify_edge(
         model: PromoterModel,
         p: float = 0.1,
