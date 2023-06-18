@@ -437,6 +437,20 @@ class NoveltySearchRunner:
                     novelty_archive,
                 ),
             ):
+                if not wrappers:
+                    runner_stats[label]["avg_novelty"].append(0)
+                    runner_stats[label]["std_novelty"].append(0)
+
+                    runner_stats[label]["avg_fitness"].append(0)
+                    runner_stats[label]["std_fitness"].append(0)
+
+                    runner_stats[label]["avg_mi"].append(0)
+                    runner_stats[label]["std_mi"].append(0)
+                    runner_stats[label]["avg_std_mi"].append(0)
+
+                    runner_stats[label]["avg_num_states"].append(0)
+                    continue
+                
                 novelties = [wrapper.novelty for wrapper in wrappers]
                 fitnesses = [wrapper.fitness for wrapper in wrappers]
                 mis = [wrapper.mi for wrapper in wrappers]
@@ -445,7 +459,7 @@ class NoveltySearchRunner:
                 ]
 
                 runner_stats[label]["avg_novelty"].append(np.average(novelties))
-                runner_stats[label]["std_novelty"].append(np.average(novelties))
+                runner_stats[label]["std_novelty"].append(np.std(novelties))
 
                 runner_stats[label]["avg_fitness"].append(np.average(fitnesses))
                 runner_stats[label]["std_fitness"].append(np.std(fitnesses))
