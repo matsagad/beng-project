@@ -49,7 +49,10 @@ class TrajectoryMetric:
         _q_dist = q_dist[non_zero]
 
         res = np.zeros(p_dist.shape)
-        res[non_zero] = _p_dist * np.log2(_p_dist / _q_dist)
+        res[non_zero] = _p_dist * (np.log2(_p_dist) - np.log2(_q_dist))
+        
+        # This is likely never called, but is a measure just in case.
+        res[np.isnan(res)] = 0
 
         return res
 
