@@ -1,5 +1,6 @@
 from pathlib import Path
 from utils.process import get_tf_data
+import os
 import pickle
 import re
 import sys
@@ -66,6 +67,14 @@ class ClassWithData:
 
     def unpickle(self, fname: str):
         object = None
-        with open(fname, "rb") as f:
-            object = pickle.load(f)
+        if os.path.isfile(fname):
+            with open(fname, "rb") as f:
+                object = pickle.load(f)
+        else:
+            print(f"File {fname} not found.")
         return object
+
+    def pickle(self, fname: str, object: any):
+        with open(fname, "wb") as f:
+            pickle.dump(object, f)
+        
