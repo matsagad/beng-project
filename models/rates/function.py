@@ -2,7 +2,7 @@ from typing import List, Tuple
 from abc import ABC, abstractmethod, abstractproperty
 from nptyping import NDArray
 import numpy as np
-
+import copy
 
 class RateFunction:
     class Function(ABC):
@@ -30,6 +30,14 @@ class RateFunction:
             return hash(
                 (*map(ord, self.__class__.__name__), tuple(self.rates), tuple(self.tfs))
             )
+        
+        def copy(self) -> "RateFunction.Function":
+            return self.__class__(copy.copy(self.rates), copy.copy(self.tfs))
+        
+        def __eq__(self, __value: object) -> bool:
+            if not isinstance(__value, self.__class__):
+                return False
+            return self.rates == __value.rates and self.tfs == __value.tfs
 
     class Constant(Function):
         def evaluate(self, exo_states: NDArray) -> float:
@@ -49,7 +57,7 @@ class RateFunction:
             return (
                 "$"
                 + "+".join(
-                    f"{rate:.3f} \cdot TF_{{{tf}}}" if with_rates else f"TF_{{{tf}}}"
+                    f"{rate:.3f} \cdot \mathrm{{TF}}_{{{tf}}}" if with_rates else f"TF_{{{tf}}}"
                     for rate, tf in zip(self.rates, self.tfs)
                 )
                 + "$"
@@ -67,8 +75,8 @@ class RateFunction:
         def str(self, with_rates: bool = True) -> str:
             return (
                 (
-                    f"$\\frac{{{self.rates[0]:.3f} \cdot TF_{{{self.tfs[0]}}}}}"
-                    + f"{{{self.rates[1]:.3f} + TF_{{{self.tfs[0]}}}}}$"
+                    f"$\\frac{{{self.rates[0]:.3f} \cdot \mathrm{{TF}}_{{{self.tfs[0]}}}}}"
+                    + f"{{{self.rates[1]:.3f} + \mathrm{{TF}}_{{{self.tfs[0]}}}}}$"
                 )
                 if with_rates
                 else f"$Hill(TF_{{{self.tfs[0]}}})$"
