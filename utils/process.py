@@ -35,10 +35,11 @@ def get_tf_data(
     local_scale: bool = True,
     cache_folder: str = "cache",
     data_folder: str = "data",
-) -> Tuple[NDArray[Shape["Any, Any, Any, Any"], Float], int, int]:
+) -> Tuple[NDArray[Shape["Any, Any, Any, Any"], Float], int, int, int]:
     """
     Yields data from the stress type experiments.
-    Returns a 4D array with dimensions: # environments, # TFs, batch size, # times.
+    Returns a 4D array with dimensions: # environments, # TFs, batch size, # times
+    as well as the origin, average time in between measurements, and the names of TFs.
     """
     # Load from cache if exists
     path_to_data = f"{cache_folder}/{f_data}"
