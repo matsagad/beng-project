@@ -97,12 +97,14 @@ class PromoterModel:
     def visualise(
         self,
         with_rates: bool = True,
+        discrete: bool = False,
         save: bool = False,
         fname: str = "cache/model.png",
         white_bg: bool = True,
         transparent: bool = False,
         small_size: bool = False,
         target_ax: any = None,
+        no_pgf: bool = False,
     ) -> None:
         from igraph import Graph, plot
         import matplotlib.pyplot as plt
@@ -110,11 +112,13 @@ class PromoterModel:
         from matplotlib import rcParams
 
         # rcParams["text.usetex"] = True
-        # plt.rc("text.latex", preamble="\\usepackage{amsmath}")
+        # plt.rc('text', usetex=True)
+        # plt.rc("text.latex", preamble=r"\usepackage{amsmath}")
+        rcParams["pgf.preamble"] = r"\usepackage{amsmath} \usepackage{xcolor}"
 
-        # Colors are from the "marumaru gum" palette by sukinapan!
-        palette = ["#96beb1", "#fda9a9", "#f3eded", "#82939b", "#b9eedc"]
-        bg = "white" if white_bg else palette[2]
+        # Colors are from the "curiosities" palette by sukinapan!
+        palette = ["#00b9be", "#ffb0a3", "#ffeecc", "#46425e"]
+        bg = ("#ffffff00" if transparent else "white") if white_bg else palette[2]
 
         num_colors = 10
         cmap = LinearSegmentedColormap.from_list(
@@ -129,18 +133,29 @@ class PromoterModel:
             self.activity_weights
         )
 
-        properties = np.zeros((self.num_states, 3), dtype=object)
+        properties = np.zeros((self.num_states, 4), dtype=object)
         properties[active_states, 0] = [
-            f"$\\underset{{ {activity_weights[i]:.2f} }}{{ A_{{ {i} }} }}$"
-            for i in range(sum(active_states))
+            (
+                f"$A_{{ {i} }}$"
+                if discrete
+                else f"$\\underset{{ {activity_weights[i]:.2f} }}{{ A_{{ {i} }} }}$"
+            )
+            for i, weight in enumerate(activity_weights)
         ]
+
         properties[active_states, 1] = [
-            rgb2hex(cmap(weight)) for weight in activity_weights
+            palette[0] if discrete else rgb2hex(cmap(weight))
+            for weight in activity_weights
         ]
-        properties[active_states, 2] = 9
+        properties[active_states, 3] = [
+            cmap(0.0) if discrete or weight > 0.5 else cmap(1.0)
+            for weight in activity_weights
+        ]
+
+        properties[active_states, 2] = 14 if discrete else 12
         properties[~active_states, 0] = [f"$I_{i}$" for i in range(sum(~active_states))]
         properties[~active_states, 1] = palette[1]
-        properties[~active_states, 2] = 12
+        properties[~active_states, 2] = 14
 
         graph.vs["label"] = properties[:, 0]
         graph.vs["color"] = properties[:, 1]
@@ -154,15 +169,28 @@ class PromoterModel:
         ]
         graph.add_edges([edge for edge, _ in edges])
         graph.es["label"] = [label for _, label in edges]
-        graph.es["label_size"] = 7
+        graph.es["label_size"] = 12
+
+        graph.es["color"] = graph.vs["frame_color"] = "#46425e"
+
+        if hasattr(self, "color_matrix"):
+            graph.es["color"] = graph.es["label_color"] = [
+                color for row in self.color_matrix for color in row if color is not None
+            ]
+            graph.vs["frame_color"] = [
+                max(set([c for c in row if c is not None]), key=row.count)
+                for row in self.color_matrix
+            ]
 
         visual_style = {
             # "edge_curved": 0,
             "background": None,
             "edge_label": None if small_size else graph.es["label"],
-            "edge_width": 1,
-            "edge_background": None if transparent else bg,
+            "edge_width": 1.25,
+            "edge_background": bg,
+            "edge_arrow_width": 0.75,
             "vertex_label": None if small_size else graph.vs["label"],
+            "vertex_frame_width": 1.25,
             "bbox": (200, 200),
             "layout": graph.layout("kk"),
         }
@@ -183,7 +211,12 @@ class PromoterModel:
         plot(graph, target=ax, **visual_style)
 
         if save:
-            plt.savefig(fname, dpi=180, bbox_inches="tight", pad_inches=0)
+            if no_pgf:
+                plt.savefig(fname, dpi=180, bbox_inches="tight", pad_inches=0)
+                return
+            plt.savefig(
+                fname, dpi=180, bbox_inches="tight", pad_inches=0, backend="pgf"
+            )
             return
 
         plt.show()
