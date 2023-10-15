@@ -1,6 +1,11 @@
 # BEng Project
 
-A repository for code used in my WIP undergraduate thesis.
+A repository for code used in my bachelor's of engineering thesis entitled:
+
+<p align="center">
+   <b>Evolving Promoter Architectures for Encoding Extracellular Information within Budding Yeast</b>
+   <img src="cache/promoter_model_example.png" width="400">
+</p>
 
 **Table of Contents**
 
@@ -101,6 +106,9 @@ Populate the `/data` folder with the data expected (see `/data/README.md`). This
 ## Simulations, Visualisations, and Benchmarking
 
 Examples on accessing the library classes and functions are all documented in the `/examples` folder. The `main.py` file contains commented-out snippets taken from there which can be run by uncommenting and importing as appropriate. More information on these snippets can be found within their function declarations.
+<p align="center">
+   <img src="cache/benchmark_simulation_timescale.png" height="200"> <img src="cache/mds_trajectory.png" height="200"> <img src="cache/mprof_plot.png" height="200">
+</p>
 
 ## Running Jobs
 
@@ -108,3 +116,7 @@ The `/jobs` folder contains a high-level abstraction for running common tasks in
 
 ## Running Tests
 The `/tests` folder contains tests pertaining to parts of the project methodology. Run `python3 run_test.py` to run all tests.
+
+<p align="center">
+   <img src="cache/model_generation.png" height="150">
+</p>
