@@ -107,7 +107,7 @@ Populate the `/data` folder with the data expected (see `/data/README.md`). This
 
 Examples on accessing the library classes and functions are all documented in the `/examples` folder. The `main.py` file contains commented-out snippets taken from there which can be run by uncommenting and importing as appropriate. More information on these snippets can be found within their function declarations.
 <p align="center">
-   <img src="cache/benchmark_simulation_timescale.png" height="200"> <img src="cache/mds_trajectory.png" height="200"> <img src="cache/mprof_plot.png" height="200">
+   <img src="cache/benchmark_simulation_timescale.png" height="180"> <img src="cache/mds_trajectory.png" height="180"> <img src="cache/mprof_plot.png" height="180">
 </p>
 
 ## Running Jobs
